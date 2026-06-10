@@ -186,12 +186,20 @@ class HfBaselineModel:
                 "Install in the training venv, or use MockModel for unit tests."
             ) from exc
 
+        # Decide effective device first so we can pick a sensible dtype.
+        if self.device in ("cuda", "auto"):
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
         dtype_map = {
             "bfloat16": torch.bfloat16,
             "float16": torch.float16,
             "float32": torch.float32,
         }
         dtype = dtype_map.get(self.torch_dtype, torch.bfloat16)
+        # On CPU, bfloat16 / float16 are software-emulated on most CPUs and
+        # ~10-100x slower than float32. Force float32 for CPU inference.
+        if self.device == "cpu":
+            dtype = torch.float32
 
         self._tokenizer = AutoTokenizer.from_pretrained(
             self.model_id, trust_remote_code=self.trust_remote_code
@@ -204,11 +212,7 @@ class HfBaselineModel:
             self.model_id,
             torch_dtype=dtype,
             trust_remote_code=self.trust_remote_code,
-        )
-        if self.device == "cuda" and torch.cuda.is_available():
-            self._model = self._model.to("cuda")
-        else:
-            self.device = "cpu"
+        ).to(self.device)
         self._model.eval()
 
     def _format_prompt(self, prompt: str) -> str:
