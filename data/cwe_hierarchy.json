@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "description": "Per-CWE parent relationships from MITRE CWE hierarchy. Used by the SARIF normalizer for parent/child collapsing across tools.",
+    "source": "https://cwe.mitre.org/data/definitions/<n>.html (hand-curated against our 19-CWE taxonomy)",
+    "scope": "Only the CWEs in data/ictai_cwe_list.txt; expand as needed.",
+    "spec_version": "sast_pipeline_spec.md v0.1"
+  },
+  "parents": {
+    "CWE-787": ["CWE-119"],
+    "CWE-125": ["CWE-119"],
+    "CWE-416": ["CWE-119"],
+    "CWE-476": ["CWE-119"],
+    "CWE-119": ["CWE-118"],
+    "CWE-190": ["CWE-682"],
+    "CWE-20":  ["CWE-707"],
+    "CWE-78":  ["CWE-77"],
+    "CWE-77":  ["CWE-74"],
+    "CWE-79":  ["CWE-74"],
+    "CWE-89":  ["CWE-74"],
+    "CWE-94":  ["CWE-74"],
+    "CWE-74":  ["CWE-707"],
+    "CWE-22":  ["CWE-706"],
+    "CWE-326": ["CWE-693"],
+    "CWE-327": ["CWE-693"],
+    "CWE-328": ["CWE-327"],
+    "CWE-502": ["CWE-915"],
+    "CWE-798": ["CWE-1391"],
+    "CWE-306": ["CWE-287"],
+    "CWE-862": ["CWE-284"]
+  }
+}
