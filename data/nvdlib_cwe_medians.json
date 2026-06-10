@@ -1,0 +1,158 @@
+{
+  "_meta": {
+    "status": "populated",
+    "description": "Per-CWE empirical median CVSS base score, computed from NVD CVEs.",
+    "method": "scripts/build_nvdlib_medians.py",
+    "window_years": 5,
+    "window_start": "2021-06-11T10:04:10+00:00",
+    "window_end": "2026-06-10T10:04:10+00:00",
+    "generated_at": "2026-06-10T10:12:40.593427+00:00",
+    "nvd_snapshot_date": "2026-06-10",
+    "n_cwes_covered": 19,
+    "n_cwes_queried": 19,
+    "n_cves_total_queried": 47892,
+    "n_cves_in_window": 47888,
+    "by_score_version": {
+      "v31": 47440,
+      "v30": 204,
+      "v40": 243,
+      "v2": 1
+    },
+    "spec_version": "reward_spec.md v0.1"
+  },
+  "medians": {
+    "CWE-787": {
+      "median": 7.8,
+      "mean": 7.77,
+      "n_cves": 7293,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-119": {
+      "median": 8.2,
+      "mean": 7.7,
+      "n_cves": 1000,
+      "min": 1.8,
+      "max": 9.8
+    },
+    "CWE-125": {
+      "median": 6.8,
+      "mean": 6.46,
+      "n_cves": 2813,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-416": {
+      "median": 7.8,
+      "mean": 7.67,
+      "n_cves": 2859,
+      "min": 2.3,
+      "max": 10.0
+    },
+    "CWE-476": {
+      "median": 5.5,
+      "mean": 5.74,
+      "n_cves": 2868,
+      "min": 2.2,
+      "max": 10.0
+    },
+    "CWE-190": {
+      "median": 7.5,
+      "mean": 7.18,
+      "n_cves": 886,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-20": {
+      "median": 7.5,
+      "mean": 6.93,
+      "n_cves": 1284,
+      "min": 2.2,
+      "max": 9.9
+    },
+    "CWE-89": {
+      "median": 7.3,
+      "mean": 7.83,
+      "n_cves": 6432,
+      "min": 2.7,
+      "max": 10.0
+    },
+    "CWE-78": {
+      "median": 8.8,
+      "mean": 8.26,
+      "n_cves": 2104,
+      "min": 3.3,
+      "max": 10.0
+    },
+    "CWE-79": {
+      "median": 5.9,
+      "mean": 5.69,
+      "n_cves": 11682,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-94": {
+      "median": 7.5,
+      "mean": 6.99,
+      "n_cves": 1172,
+      "min": 2.0,
+      "max": 10.0
+    },
+    "CWE-327": {
+      "median": 6.5,
+      "mean": 6.58,
+      "n_cves": 209,
+      "min": 1.9,
+      "max": 10.0
+    },
+    "CWE-328": {
+      "median": 3.65,
+      "mean": 4.73,
+      "n_cves": 20,
+      "min": 2.5,
+      "max": 9.8
+    },
+    "CWE-326": {
+      "median": 6.5,
+      "mean": 6.65,
+      "n_cves": 144,
+      "min": 2.5,
+      "max": 9.8
+    },
+    "CWE-798": {
+      "median": 8.1,
+      "mean": 7.89,
+      "n_cves": 575,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-502": {
+      "median": 8.5,
+      "mean": 8.26,
+      "n_cves": 757,
+      "min": 3.1,
+      "max": 10.0
+    },
+    "CWE-22": {
+      "median": 7.5,
+      "mean": 7.14,
+      "n_cves": 2581,
+      "min": 0.0,
+      "max": 10.0
+    },
+    "CWE-306": {
+      "median": 7.5,
+      "mean": 7.76,
+      "n_cves": 730,
+      "min": 2.2,
+      "max": 10.0
+    },
+    "CWE-862": {
+      "median": 5.5,
+      "mean": 6.13,
+      "n_cves": 2479,
+      "min": 1.7,
+      "max": 10.0
+    }
+  }
+}
