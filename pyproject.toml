@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secure-code-rl-ictai"
+version = "1.0.0"
+description = "CARGO: continuous retrieval-grounded reward design for secure code generation on small language models (ICTAI 2026)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Suryansh Singh Sijwali", email = "sss6371@psu.edu" },
+    { name = "Medhansh Kumar Singla", email = "mks6942@psu.edu" },
+    { name = "Suman Saha", email = "sumsaha@psu.edu" },
+]
+keywords = [
+    "secure-code-generation",
+    "reinforcement-learning",
+    "grpo",
+    "retrieval-augmented-generation",
+    "static-analysis",
+    "cvss",
+    "small-language-models",
+    "cwe",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security",
+]
+
+[project.urls]
+Repository = "https://github.com/SuryanshSS1011/SecureCodeRL-RAG"
+"LCTES paper" = "https://doi.org/10.1145/3814943.3816167"
+"LCTES repo" = "https://github.com/SuryanshSS1011/SecureCodeRL"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "real_oracle: tests that exec generated code via the reliability oracle (require python3 and optionally clang on PATH)",
+    "real_sast: tests that shell out to actual SAST tools (CodeQL, Semgrep, etc.); slow",
+    "real_hf: tests that load a real HuggingFace model (require torch+transformers; downloads weights)",
+    "real_rag: tests that use real rank_bm25 / faiss / sentence-transformers backends",
+]
+addopts = "-m 'not real_oracle and not real_sast and not real_hf and not real_rag'"

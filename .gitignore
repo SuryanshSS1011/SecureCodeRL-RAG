@@ -1,0 +1,120 @@
+# Paper artifacts
+docs/
+paper/
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual envs
+.venv/
+.venv_*/
+venv/
+env/
+ENV/
+.python-version
+
+# Test / coverage / type-check
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+
+# =============================================================================
+# Project-specific
+# =============================================================================
+
+# Datasets and corpus artifacts — fetched, not committed.
+# Use data/* not data/ so the !data/* exceptions can re-include small static artifacts.
+data/*
+!data/.gitkeep
+# Static reproducibility artifacts (computed once, committed):
+!data/nvdlib_cwe_medians.json
+!data/ictai_cwe_list.txt
+!data/cwe_hierarchy.json
+
+# Model checkpoints
+checkpoints/
+*.bin
+*.safetensors
+*.pt
+*.ckpt
+
+# Run outputs
+runs/
+results/
+logs/
+wandb/
+
+# RAG index artifacts
+*.faiss
+*.index
+
+# SARIF outputs from SAST tools
+*.sarif
+sarif_cache/
+
+# Static-analysis tool installs and caches
+.codeql/
+codeql-home/
+
+# Compiled artifacts from C/C++ test programs
+*.o
+*.out
+*.exe
+*.dSYM/
+assembly.ll
+info
+messages.txt
+run.stats
+warnings.txt
+*.pch
+*.gch
+*.d
+
+# Cached compiled rewards / per-completion hashes
+reward_cache/

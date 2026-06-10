@@ -1,0 +1,50 @@
+# Evaluation-time dependencies: SAST tools and benchmark test-runtime libraries.
+#
+# These pins reflect what is installed in the ROAR venv as of 2026-06-11.
+# Reproduces:
+#   pip install -r requirements-eval.txt
+#
+# Three groups:
+#   1. SAST tools the pipeline shells out to.
+#   2. Dataset-test-runtime libs (CWEval test files import these directly).
+#   3. Model-loading + tokenization (handled by core requirements.txt; here
+#      we only pin what was bumped mid-session).
+
+# --- 1. SAST tools ----------------------------------------------------------
+# Bandit ships SARIF via a separate formatter plugin (1.x doesn't have
+# native --format=sarif).
+bandit==1.9.4
+bandit-sarif-formatter==1.1.1
+# Pin to 1.157.0 specifically — newer versions ship without the bundled
+# semgrep-core OCaml binary on some platforms; 1.157 has it in the
+# manylinux wheel.
+semgrep==1.157.0
+# CodeQL is a binary download from github.com/github/codeql-cli-binaries;
+# not pip-installable; point CODEQL_BINARY at it if it is not on PATH.
+# Cppcheck 2.18.0 is built from source; point CPPCHECK_BINARY at it if it is
+# not on PATH.
+
+# --- 1b. RAG retriever ------------------------------------------------------
+# bm25s (Lu & Bonet '24) — ~500x faster than rank_bm25 at our 41k-pair scale;
+# scipy sparse matrices for index + query. Preferred backend in Bm25Backend;
+# falls back to rank_bm25 if bm25s isn't available.
+bm25s==0.3.9
+# rank_bm25 kept as the documented fallback.
+rank_bm25
+
+# --- 2. CWEval test-runtime libs --------------------------------------------
+# CWEval's `cwe_NNN_M_test.py` files import these directly. Without them,
+# pytest collection fails before any test runs -> our harness reports
+# "FAIL: testcases source raised". Caught 2026-06-11 across 8 of 25
+# Python CWEval prompts.
+wrapt-timeout-decorator==1.5.1
+pycryptodome==3.23.0     # provides `Crypto.*` (CWE-326, 327)
+argon2-cffi==25.1.0      # CWE-327 (password hashing)
+
+# --- 3. HF + tokenization (mid-session bumps) -------------------------------
+# Already in core requirements.txt but listed here so re-provisioning a
+# fresh eval venv with just this file gets a consistent set.
+transformers==5.10.2
+tokenizers==0.22.2
+huggingface-hub==1.18.0
+sentence-transformers   # version not pinned — RAG index doesn't need a specific one

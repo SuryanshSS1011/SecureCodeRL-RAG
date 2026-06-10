@@ -1,0 +1,20 @@
+# Core runtime for training, evaluation, and the RAG index.
+# Pinned versions are the ones installed in the ROAR venv that produced the
+# paper's runs (Python 3.11.2). Unpinned packages were not recorded.
+# SAST tools and CWEval test-runtime libraries are in requirements-eval.txt.
+
+torch==2.12.0
+transformers==5.10.2
+tokenizers==0.22.2
+huggingface-hub==1.18.0
+peft==0.19.1
+sentence-transformers==5.5.1
+bm25s==0.3.9
+faiss-cpu==1.14.2
+numpy
+scipy
+datasets
+pyarrow
+rapidfuzz
+nvdlib
+matplotlib
