@@ -75,7 +75,23 @@ class HfEmbedder:
                 "Install in the training venv, or use MockEmbedder for unit tests."
             ) from exc
 
-        self._model = SentenceTransformer(self.model_id, device=self.device)
+        # Resolve "auto" before passing to SentenceTransformer — torch.to()
+        # only accepts concrete device strings (cuda/cpu/mps/...), and the
+        # build_rag_index.py CLI lets users pass --device auto.
+        device = self.device
+        if device == "auto":
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device = "cuda"
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    device = "mps"
+                else:
+                    device = "cpu"
+            except ImportError:
+                device = "cpu"
+
+        self._model = SentenceTransformer(self.model_id, device=device)
 
     def embed(self, text: str) -> list[float]:
         self._ensure_loaded()

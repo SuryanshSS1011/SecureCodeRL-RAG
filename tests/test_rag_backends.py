@@ -14,6 +14,9 @@ The unit-test pattern for each backend:
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from secure_code_rl_ictai.rag import (
@@ -174,6 +177,29 @@ def test_faiss_backend_dim_mismatch_raises():
 def test_hf_embedder_constructor_does_not_load():
     e = HfEmbedder()
     assert e._model is None  # not loaded
+
+
+def test_hf_embedder_resolves_auto_device(monkeypatch):
+    """`device='auto'` must resolve to a concrete cuda/cpu/mps string
+    before SentenceTransformer.__init__ calls torch.to(device) — torch
+    rejects 'auto' as an invalid device. Regression for the OOM-free
+    RAG index job that crashed at runtime with:
+        RuntimeError: Expected one of cpu, cuda, ... at start of device
+        string: auto
+    """
+    captured = {}
+
+    class _FakeST:
+        def __init__(self, model_id, device):
+            captured["device"] = device
+
+    fake_st_module = types.SimpleNamespace(SentenceTransformer=_FakeST)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_st_module)
+
+    e = HfEmbedder(device="auto")
+    e._ensure_loaded()
+    assert captured["device"] in {"cuda", "cpu", "mps"}
+    assert captured["device"] != "auto"
 
 
 @pytest.mark.real_rag
