@@ -65,6 +65,44 @@ class CodeQLAdapter(ToolAdapter):
                 duration_s=0.0,
             )
 
+        # Pre-flight parseability check. CodeQL's `database create` is
+        # expensive (~40 s) and reliably fails on partial/malformed code
+        # — which is the common case during RL training-time rollouts.
+        # Return empty SARIF (= no findings, no crash) when the snippet
+        # is obviously not analyzable, so the training loop doesn't waste
+        # 40 s per rollout on guaranteed failures.
+        stripped = code.strip()
+        if not stripped:
+            return ToolRunResult(
+                tool=self.tool, sarif={"runs": []},
+                stderr="codeql: empty snippet, skipped",
+                exit_code=0, duration_s=0.0,
+            )
+        if language == Language.PYTHON:
+            try:
+                import ast as _ast
+                _ast.parse(code)
+            except SyntaxError as exc:
+                return ToolRunResult(
+                    tool=self.tool, sarif={"runs": []},
+                    stderr=f"codeql: Python syntax error, skipped ({exc})",
+                    exit_code=0, duration_s=0.0,
+                )
+        elif language in (Language.C, Language.CPP):
+            # Cheap brace-balance check. CodeQL's C/C++ extractor needs
+            # to at least parse a top-level function; severely unbalanced
+            # braces (more than +/- 2 off) almost always indicates partial
+            # code that will fail in the extractor.
+            n_open = code.count("{")
+            n_close = code.count("}")
+            if abs(n_open - n_close) > 2 or (n_open == 0 and n_close == 0):
+                return ToolRunResult(
+                    tool=self.tool, sarif={"runs": []},
+                    stderr=f"codeql: C/C++ braces unbalanced ({n_open} open vs "
+                           f"{n_close} close), skipped",
+                    exit_code=0, duration_s=0.0,
+                )
+
         work_dir.mkdir(parents=True, exist_ok=True)
         # CodeQL wants a source root *directory* that contains the snippet.
         source_root = work_dir / "source"
