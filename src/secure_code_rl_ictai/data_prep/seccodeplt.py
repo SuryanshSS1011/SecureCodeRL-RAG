@@ -117,6 +117,20 @@ class SecCodePltAdapter(DataAdapter):
             # Append signature if the description doesn't already mention it.
             prompt_text = f"{description}\n\n{signature}"
 
+        # Synthesize a def-line hint when neither description nor signature
+        # gives the model the expected function name. The converter records
+        # this name as metadata.seccodeplt_fn when it could be inferred.
+        # Without this, the harness's getattr(snippet, fn_name, None) misses
+        # and the fall-back-to-first-callable picks the wrong function with
+        # wrong semantic expectations -> universally func@1=0.
+        fn_name = rec.get("metadata", {}).get("seccodeplt_fn")
+        if fn_name and f"def {fn_name}" not in prompt_text:
+            prompt_text = (
+                f"{prompt_text}\n\n"
+                f"Complete the function `{fn_name}`. Wrap your code in a "
+                f"```python ... ``` block."
+            )
+
         test_cases = self._parse_tests(rec.get("tests", []))
         test_spec = TestSpec(
             language=lang,
