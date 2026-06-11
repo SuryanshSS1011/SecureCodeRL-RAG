@@ -315,17 +315,45 @@ def test_normalizer_parses_codeql_style_severity():
 
 
 def test_normalizer_drops_findings_below_confidence_floor():
-    """A note-level finding (conf=0.3) on a CRITICAL severity passes the
-    CRITICAL floor (0.6)? No: 0.3 < 0.6, drop. Use HIGH for the test."""
+    """A LOW-severity finding with a tool-emitted note level (conf=0.3)
+    against LOW tier (floor 0.3) sits at the floor. Dial conf to 0.2 by
+    using a non-standard level and confirm it drops.
+
+    Note: this test does NOT use a high security-severity because the
+    cross-signal boost (sev>=7 -> conf>=0.8) would override the low
+    level. The drop semantics are still tested below — they just need a
+    finding without a high severity to trigger the floor path."""
     sarif = _sarif_with_one_result(
         rule_id="r1",
         rule_props={
-            "properties": {"tags": ["CWE-79"], "security-severity": "9.5"},
+            "properties": {"tags": ["CWE-79"], "security-severity": "2.0"},
         },
-        level="note",  # -> 0.3
+        # level: not "error"/"warning"/"note" -> _coerce_confidence returns
+        # default=0.5. We bypass that by passing the level=None and a
+        # numeric confidence under the floor.
+        level=None,
+        result_props={"confidence": 0.2},
     )
     findings = SarifNormalizer().parse_sarif(ToolName.SEMGREP, sarif)
     assert findings == []
+
+
+def test_normalizer_boosts_confidence_when_security_severity_is_high():
+    """Cppcheck emits SARIF `level: warning` (0.5) on findings with
+    security-severity=9.9 — without a boost, every cppcheck CRITICAL
+    finding gets dropped by the per-tier floor (CRITICAL=0.6). Verify
+    sev>=7 promotes confidence to >=0.8."""
+    sarif = _sarif_with_one_result(
+        rule_id="memleak",
+        rule_props={
+            "properties": {"security-severity": "9.9"},
+        },
+        level="warning",  # -> 0.5; boost to 0.8 because sev=9.9 >= 7
+    )
+    findings = SarifNormalizer().parse_sarif(ToolName.CPPCHECK, sarif)
+    assert len(findings) == 1
+    assert findings[0].confidence >= 0.8
+    assert findings[0].cwe == "CWE-401"
 
 
 def test_normalizer_keeps_findings_at_or_above_floor():

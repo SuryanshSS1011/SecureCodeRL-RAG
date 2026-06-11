@@ -96,10 +96,16 @@ class CppcheckAdapter(ToolAdapter):
 
         duration = time.monotonic() - start
 
+        # Cppcheck writes SARIF to STDERR by default (errors and SARIF go
+        # to the error stream; stdout is reserved for the progress banner
+        # under --quiet that gets suppressed). Try stdout first, fall back
+        # to stderr — if the first parses as JSON we use it, otherwise the
+        # other.
         sarif = None
-        if proc.stdout:
+        parse_target = proc.stdout if proc.stdout and proc.stdout.lstrip().startswith("{") else proc.stderr
+        if parse_target:
             try:
-                sarif = json.loads(proc.stdout)
+                sarif = json.loads(parse_target)
             except json.JSONDecodeError as exc:
                 return ToolRunResult(
                     tool=self.tool,
@@ -107,16 +113,20 @@ class CppcheckAdapter(ToolAdapter):
                     stderr=(
                         f"failed to parse cppcheck SARIF: {exc}\n"
                         f"stdout head: {proc.stdout[:200]}\n"
-                        f"stderr: {proc.stderr[:400]}"
+                        f"stderr head: {proc.stderr[:400]}"
                     ),
                     exit_code=proc.returncode,
                     duration_s=duration,
                 )
 
+        # The error stream now also held the SARIF; surface only the
+        # non-SARIF prefix (if any) in our `stderr` field.
+        residual_stderr = proc.stderr if parse_target is proc.stdout else ""
+
         return ToolRunResult(
             tool=self.tool,
             sarif=sarif,
-            stderr=proc.stderr,
+            stderr=residual_stderr,
             exit_code=proc.returncode,
             duration_s=duration,
         )

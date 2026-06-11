@@ -143,6 +143,21 @@ class SarifNormalizer:
                 raw_conf = 0.3
         conf = _coerce_confidence(raw_conf, default=0.5)
 
+        # Cross-signal boost: if security-severity is high but the SARIF
+        # `level` mapped to a low confidence (e.g., cppcheck emits
+        # `level: warning` => 0.5 even when sev=9.9), upgrade. Otherwise
+        # the per-tier floor drops every high-severity cppcheck finding.
+        # The rule: when sev>=7, confidence is at least 0.8 (matching the
+        # CodeQL "high-quality findings" threshold). When sev>=4, at least
+        # 0.5. Tools that disagree by emitting a low level alongside a
+        # high security-severity have a self-inconsistent SARIF; we trust
+        # the severity signal because it's the cross-tool standard.
+        if sev_f is not None:
+            if sev_f >= 7.0 and conf < 0.8:
+                conf = 0.8
+            elif sev_f >= 4.0 and conf < 0.5:
+                conf = 0.5
+
         # Apply per-tier confidence floor (pre-corroboration).
         if conf < self.confidence_floors.get(tier, 0.0):
             return None
