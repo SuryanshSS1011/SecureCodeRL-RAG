@@ -109,8 +109,16 @@ class SecurityEvalAdapter(DataAdapter):
         m = _ID_CWE_RE.match(rec_id)
         if not m:
             return None
+        # SecurityEval uses zero-padded numbers ("CWE-020"); strip the pad
+        # because the project's normalize_cwe preserves the leading zero
+        # and would mismatch the target CWE set ("CWE-20").
+        cwe_raw = m.group(1)
         try:
-            cwe = normalize_cwe(m.group(1))
+            cwe_num = int(cwe_raw.split("-", 1)[1])
+        except (ValueError, IndexError):
+            return None
+        try:
+            cwe = normalize_cwe(f"CWE-{cwe_num}")
         except ValueError:
             return None
         if self.config.target_cwes is not None and cwe not in self.config.target_cwes:
