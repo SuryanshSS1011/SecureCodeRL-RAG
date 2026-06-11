@@ -123,6 +123,12 @@ ROAR_GPU_EVAL  ?= a40:1
 ROAR_GPU_REAL ?= $(ROAR_GPU_TRAIN)
 ROAR_GPU_TEST ?= $(ROAR_GPU_EVAL)
 
+# HuggingFace cache target. /work is group-quota-limited to ~30 GB free
+# and 9-baseline sweeps need ~90 GB of cached weights. Compute nodes have
+# 260 GB local NVMe at /tmp; using that lets all baselines fit at once,
+# and the per-job ephemerality means no cumulative quota buildup.
+ROAR_HF_HOME ?= /tmp/hf_cache
+
 .PHONY: roar-status
 roar-status:
 	@echo ">>> queue + storage on $(ROAR_HOST)"
