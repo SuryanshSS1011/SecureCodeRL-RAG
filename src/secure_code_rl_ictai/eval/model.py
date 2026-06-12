@@ -255,8 +255,31 @@ class HfBaselineModel:
         inputs = self._tokenizer(formatted, return_tensors="pt").to(self.device)
         n_input = int(inputs.input_ids.shape[1])
 
+        # Enforce the model's positional-embedding window. Legacy models
+        # (CodeGen-2B-multi: 2048, GPT-2: 1024) raise CUDA IndexKernel OOB
+        # at generate() when n_input + max_new_tokens > max_pos. v0.1.5
+        # eval prompts can be ~1.5–2k tokens of source code, so 2k-context
+        # models need left-truncation. We keep the prompt tail since base
+        # / code-continuation framings put the actionable code at the end.
+        max_pos = getattr(self._model.config, "max_position_embeddings", None)
+        gen_max_new = sampling.max_new_tokens
+        if max_pos is not None and n_input + gen_max_new > max_pos:
+            keep_input = max(64, max_pos - gen_max_new - 1)
+            if n_input > keep_input:
+                inputs = {
+                    k: v[:, -keep_input:] if v.ndim == 2 else v
+                    for k, v in inputs.items()
+                }
+                n_input = int(inputs["input_ids"].shape[1])
+            # If even the truncated input plus full max_new_tokens still
+            # overflows, clip max_new_tokens. Floor at 64 so a stub of
+            # generation still happens (the downstream pipeline tolerates
+            # short completions; empty would refusal-flag the record).
+            if n_input + gen_max_new > max_pos:
+                gen_max_new = max(64, max_pos - n_input - 1)
+
         gen_kwargs = {
-            "max_new_tokens": sampling.max_new_tokens,
+            "max_new_tokens": gen_max_new,
             "pad_token_id": self._tokenizer.pad_token_id,
         }
         if sampling.temperature > 0.0:
