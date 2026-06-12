@@ -455,13 +455,60 @@ def build(args):
     for p in surviving_train:
         by_cell[(p.target_cwe, p.language.value)].append(p)
     final_train = []
-    final_val = []
+    final_val_candidates = []
     for (cwe, lang), group in by_cell.items():
         group.sort(key=lambda p: p.id)
         n_val = int(len(group) * val_fraction + 0.5)
-        final_val.extend(group[:n_val])
+        final_val_candidates.extend(group[:n_val])
         final_train.extend(group[n_val:])
-    logger.info(f"stratified val split: train={len(final_train)} val={len(final_val)}")
+    logger.info(f"stratified val split (pre-leak-audit): train={len(final_train)} val_candidates={len(final_val_candidates)}")
+
+    # Train ⊥ val per-cell near-duplicate audit. The earlier intra-train
+    # dedup operates BEFORE the val split, so fork-vendor pairs at sim
+    # 0.85-0.99 can survive the cell-level cut and end up split across
+    # train and val (e.g., id-A in val, id-B in train, sim=0.88). This
+    # audit drops val items whose nearest train neighbor in the same
+    # (CWE, language) cell exceeds the intra-train threshold (0.85).
+    train_val_threshold = 0.85
+    try:
+        from rapidfuzz import fuzz as _rf_fuzz
+        def _sim(a, b):
+            return _rf_fuzz.ratio(a, b) / 100.0
+    except ImportError:
+        from difflib import SequenceMatcher
+        def _sim(a, b):
+            return SequenceMatcher(a=a, b=b).quick_ratio()
+
+    train_texts_by_cell = defaultdict(list)
+    for p in final_train:
+        train_texts_by_cell[(p.target_cwe, p.language.value)].append(p.prompt_text)
+    final_val = []
+    n_val_dropped = 0
+    val_leak_log = []
+    for p in final_val_candidates:
+        cell = (p.target_cwe, p.language.value)
+        train_texts = train_texts_by_cell.get(cell, [])
+        best_sim = 0.0
+        for t_text in train_texts:
+            s = _sim(p.prompt_text, t_text)
+            if s > best_sim:
+                best_sim = s
+                if best_sim >= train_val_threshold:
+                    break
+        if best_sim >= train_val_threshold:
+            n_val_dropped += 1
+            val_leak_log.append({
+                "prompt_id": p.id,
+                "cwe": p.target_cwe,
+                "language": p.language.value,
+                "max_sim_to_train": round(best_sim, 4),
+            })
+        else:
+            final_val.append(p)
+    logger.info(
+        f"train ⊥ val near-dup audit: dropped {n_val_dropped} val items "
+        f"at sim >= {train_val_threshold}; final val = {len(final_val)}"
+    )
 
     final_train.sort(key=lambda p: p.id)
     final_val.sort(key=lambda p: p.id)
@@ -546,6 +593,14 @@ def build(args):
             "string_only_drops": report.string_only_drops,
             "ast_only_drops": report.ast_only_drops,
             "both_drops": report.both_drops,
+        },
+        "train_val_leak_audit": {
+            "threshold": train_val_threshold,
+            "method": "per-(CWE, language) cell rapidfuzz.ratio; val item dropped if any train item in same cell has sim >= threshold",
+            "val_candidates": len(final_val_candidates),
+            "val_dropped_on_leak": n_val_dropped,
+            "final_val": len(final_val),
+            "leaked_items": val_leak_log,
         },
         "hashes": {
             "train_prompts.jsonl": _hash_file(train_path),
