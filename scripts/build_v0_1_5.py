@@ -78,8 +78,17 @@ def in_scope_langs(cwe):
         return {"c", "cpp"}
     if cwe in PY_NATIVE:
         return {"python"}
-    if cwe in DESIGN_PAIR:
+    if cwe == "CWE-306":
         return {"python"}
+    if cwe == "CWE-862":
+        # Python primary (where eval lives via SecCodePLT 45 items + SecurityEval).
+        # C is added training-only: DiverseVul supplies 47 + CVEfixes 7 = ~54 raw
+        # vulnerable-function patterns. These contribute to warm-start variance
+        # (failure mode A relief — lifting p_c above 0 for the SFT seed) but are
+        # NOT separately evaluated, because no C authz benchmark exists in our
+        # eval pool. The decision and its threats-to-validity framing live in
+        # docs/scope.md §2 Tier 5.
+        return {"python", "c"}
     return set()
 
 

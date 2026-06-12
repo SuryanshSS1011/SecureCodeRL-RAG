@@ -57,7 +57,9 @@ def in_scope_langs(cwe):
     """Return the set of languages where CWE is trained, per the tier policy.
 
     Tier 4 (descriptive-only) returns empty — not trained at all.
-    Tier 5 (design pair) returns {python} per Phase-1 scope.
+    Tier 5 (design pair) — CWE-306 Python-only; CWE-862 Python + C
+    (Python primary; C training-only, evaluated Python because no C authz
+    benchmark exists in our eval pool — see docs/scope.md §2 Tier 5).
     """
     if cwe in TRILINGUAL:
         return {"python", "c", "cpp"}
@@ -65,8 +67,10 @@ def in_scope_langs(cwe):
         return {"c", "cpp"}
     if cwe in PY_NATIVE:
         return {"python"}
-    if cwe in DESIGN_PAIR:
+    if cwe == "CWE-306":
         return {"python"}
+    if cwe == "CWE-862":
+        return {"python", "c"}
     return set()  # T4 descriptive-only
 
 
