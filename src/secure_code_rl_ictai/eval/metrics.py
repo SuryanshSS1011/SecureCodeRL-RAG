@@ -41,6 +41,13 @@ from .harness import PerPromptRecord
 # ----- predicates -----
 
 def _is_compiles(rec: PerPromptRecord) -> bool:
+    # The reliability oracle reports `compiles=True` for empty strings on
+    # some languages (nothing to fail to compile). Pair compiles with the
+    # refusal/crash check so an empty completion never counts as
+    # "produced code that compiles" — observed with SafeCoder where every
+    # completion was empty and 682/861 still had compiles=True.
+    if rec.refusal_or_empty or rec.crashed:
+        return False
     return bool(rec.compiles)
 
 
