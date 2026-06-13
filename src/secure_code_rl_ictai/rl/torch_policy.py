@@ -413,7 +413,17 @@ class TorchPolicy:
         self._model.eval()  # critical: dropout off during generation
         try:
             completions: list[str] = []
-            for prompt in prompts:
+            # Seed once outside the loop and let the model RNG advance
+            # naturally between completions. Per-iteration re-seeding
+            # collapsed every rollout in a GRPO group to the same
+            # completion → zero group variance → Dr.GRPO σ_floor masked
+            # every group → no gradient signal. Use seed+i for
+            # deterministic-per-rollout reproducibility.
+            if sampling.temperature > 0.0:
+                torch.manual_seed(sampling.seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(sampling.seed)
+            for i, prompt in enumerate(prompts):
                 formatted = self._format_prompt(prompt)
                 inputs = self._tokenizer(formatted, return_tensors="pt").to(self.device)
                 n_input = inputs.input_ids.shape[1]
@@ -425,9 +435,6 @@ class TorchPolicy:
                     gen_kwargs["do_sample"] = True
                     gen_kwargs["temperature"] = sampling.temperature
                     gen_kwargs["top_p"] = sampling.top_p
-                    torch.manual_seed(sampling.seed)
-                    if torch.cuda.is_available():
-                        torch.cuda.manual_seed_all(sampling.seed)
                 else:
                     gen_kwargs["do_sample"] = False
                 with torch.no_grad():
