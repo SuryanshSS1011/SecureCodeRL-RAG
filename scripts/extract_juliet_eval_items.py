@@ -49,16 +49,46 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("juliet_eval")
 
 
-# Juliet child CWE -> our parent CWE
+# Juliet child CWE -> our parent CWE. Expanded 2026-06-14 power-audit pass:
+# added crypto (CWE-327), path traversal (CWE-22), command injection (CWE-78),
+# hardcoded credentials (CWE-798), and a wider net for integer-arithmetic
+# bugs (CWE-190 absorbs CWE191/194/195/196/197/680) and NULL-deref (CWE-476
+# absorbs CWE690 NULL-deref-from-return). This lets the v0.1.7+ Juliet
+# extractor close per-(CWE × lang) cell power gaps that the 30-items/cell
+# pass couldn't fill.
 JULIET_TO_OUR_CWE = {
-    "CWE121": "CWE-787",
-    "CWE122": "CWE-787",
-    "CWE126": "CWE-125",
-    "CWE127": "CWE-125",
-    "CWE190": "CWE-190",
-    "CWE415": "CWE-416",
-    "CWE416": "CWE-416",
+    # CWE-787 (out-of-bounds write)
+    "CWE121": "CWE-787",  # Stack BoF
+    "CWE122": "CWE-787",  # Heap BoF
+    "CWE124": "CWE-787",  # Buffer underwrite
+    # CWE-125 (out-of-bounds read)
+    "CWE126": "CWE-125",  # Buffer overread
+    "CWE127": "CWE-125",  # Buffer underread
+    # CWE-190 (integer overflow / numeric)
+    "CWE190": "CWE-190",  # Integer overflow
+    "CWE191": "CWE-190",  # Integer underflow
+    "CWE194": "CWE-190",  # Unexpected sign extension
+    "CWE195": "CWE-190",  # Signed-to-unsigned conversion
+    "CWE197": "CWE-190",  # Numeric truncation
+    "CWE680": "CWE-190",  # Int overflow → buffer overflow
+    # CWE-416 (use-after-free)
+    "CWE415": "CWE-416",  # Double free
+    "CWE416": "CWE-416",  # Use after free
+    # CWE-476 (NULL deref)
     "CWE476": "CWE-476",
+    "CWE690": "CWE-476",  # NULL deref from return
+    # CWE-22 (path traversal)
+    "CWE23":  "CWE-22",   # Relative path traversal
+    "CWE36":  "CWE-22",   # Absolute path traversal
+    # CWE-78 (OS command injection)
+    "CWE78":  "CWE-78",
+    # CWE-327 (broken crypto)
+    "CWE325": "CWE-327",  # Missing cryptographic step
+    "CWE327": "CWE-327",  # Use broken crypto
+    "CWE338": "CWE-327",  # Weak PRNG
+    # CWE-798 (hardcoded credentials)
+    "CWE259": "CWE-798",  # Hardcoded password
+    "CWE321": "CWE-798",  # Hardcoded crypto key
 }
 
 # Brief description for the instruction.
@@ -68,6 +98,10 @@ _CWE_DESC = {
     "CWE-190": "integer overflow or wraparound",
     "CWE-416": "use-after-free",
     "CWE-476": "NULL pointer dereference",
+    "CWE-22":  "path traversal",
+    "CWE-78":  "OS command injection",
+    "CWE-327": "use of broken or risky cryptographic algorithm",
+    "CWE-798": "use of hard-coded credentials",
 }
 
 # Juliet file types we want.
@@ -202,16 +236,22 @@ def main() -> int:
         logger.error("Juliet C/testcases dir not found at %s", c_testcases)
         return 2
 
-    # Iterate every Juliet CWE dir we care about.
+    # Phase 1: collect ALL candidate files per (our_cwe, language) across
+    # the (possibly multiple) Juliet subdirs that map to the same our_cwe.
+    # Interleave files from different Juliet subdirs so the per-(our_cwe ×
+    # lang) sample has diversity across child CWEs (e.g., for our CWE-787,
+    # mix CWE121-stack-overflow with CWE122-heap-overflow and CWE124-
+    # buffer-underwrite items, instead of taking all 30 from CWE122).
+    candidates_by_cell: dict[tuple[str, str], list[Path]] = defaultdict(list)
     for juliet_cwe, our_cwe in JULIET_TO_OUR_CWE.items():
         cwe_dirs = list(c_testcases.glob(f"{juliet_cwe}_*"))
         if not cwe_dirs:
             logger.warning("no dir for %s", juliet_cwe)
             continue
         cwe_dir = cwe_dirs[0]
-        logger.info("scanning %s for %s ...", cwe_dir.name, our_cwe)
 
-        # Walk recursively. Each file may contain a bad() function.
+        # Walk recursively. Bucket by language. Group source files into
+        # rounds so we can round-robin across Juliet subdirs below.
         per_lang_files = defaultdict(list)
         for src in cwe_dir.rglob("*"):
             if not src.is_file():
@@ -223,40 +263,52 @@ def main() -> int:
                 per_lang_files["cpp"].append(src)
 
         for language, files in per_lang_files.items():
-            # Deterministic shuffle so we get diverse subshards.
             files_sorted = sorted(files, key=lambda p: p.as_posix())
             shuffled_idx = list(range(len(files_sorted)))
             rng.shuffle(shuffled_idx)
+            candidates_by_cell[(our_cwe, language)].append(
+                [files_sorted[i] for i in shuffled_idx]
+            )
 
-            picked = 0
-            for i in shuffled_idx:
+    # Phase 2: round-robin sample up to args.items_per_cell items per
+    # (our_cwe × lang) cell, drawing from each Juliet subdir in turn so
+    # we get diversity.
+    for (our_cwe, language), subdir_lists in sorted(candidates_by_cell.items()):
+        picked = 0
+        # Round-robin across subdir lists until we hit the cap or all empty.
+        cursor = [0] * len(subdir_lists)
+        active = list(range(len(subdir_lists)))
+        while picked < args.items_per_cell and active:
+            next_active = []
+            for s_idx in active:
                 if picked >= args.items_per_cell:
                     break
-                src = files_sorted[i]
-                try:
-                    text = src.read_text(errors="replace")
-                except OSError:
-                    continue
-
-                extracted = _extract_function_body(text, _BAD_FN_RE)
-                if extracted is None:
-                    continue
-                sig_line, body = extracted
-                if not body.strip() or len(body) > 4000:
-                    # Skip empties and extremely long bodies (likely the
-                    # model can't handle them at max-new-tokens=512).
-                    continue
-
-                hint = _extract_signature_hint(text)
-                record = _build_prompt(
-                    our_cwe=our_cwe, language=language,
-                    bad_signature=sig_line, bad_body=body,
-                    source_file=src, signature_hint=hint,
-                )
-                cells[(our_cwe, language)].append(record)
-                picked += 1
-
-            logger.info("  %s × %s: %d items", our_cwe, language, picked)
+                while cursor[s_idx] < len(subdir_lists[s_idx]):
+                    src = subdir_lists[s_idx][cursor[s_idx]]
+                    cursor[s_idx] += 1
+                    try:
+                        text = src.read_text(errors="replace")
+                    except OSError:
+                        continue
+                    extracted = _extract_function_body(text, _BAD_FN_RE)
+                    if extracted is None:
+                        continue
+                    sig_line, body = extracted
+                    if not body.strip() or len(body) > 4000:
+                        continue
+                    hint = _extract_signature_hint(text)
+                    record = _build_prompt(
+                        our_cwe=our_cwe, language=language,
+                        bad_signature=sig_line, bad_body=body,
+                        source_file=src, signature_hint=hint,
+                    )
+                    cells[(our_cwe, language)].append(record)
+                    picked += 1
+                    next_active.append(s_idx)
+                    break  # take one then move to next subdir
+            active = [s for s in next_active if cursor[s] < len(subdir_lists[s])]
+        logger.info("  %s × %s: %d items (from %d juliet subdirs)",
+                    our_cwe, language, picked, len(subdir_lists))
 
     # Flatten + dedup by id.
     all_records: dict[str, dict] = {}
