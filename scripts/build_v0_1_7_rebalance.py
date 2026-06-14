@@ -115,6 +115,9 @@ def main() -> int:
                     default=TRAIN_BRIDGE_SECCODEPLT)
     ap.add_argument("--design-pair-src", type=Path,
                     default=Path("/scratch/sss6371/secure-code-rl-ictai-data/build/v0.1.5.1"))
+    ap.add_argument("--juliet-eval-jsonl", type=Path,
+                    default=Path("/scratch/sss6371/secure-code-rl-ictai-data/build/v0.1.7/juliet_eval_items.jsonl"),
+                    help="Juliet eval items JSONL produced by extract_juliet_eval_items.py")
     args = ap.parse_args()
 
     src = args.src_dir
@@ -234,15 +237,49 @@ def main() -> int:
                 "across %d CWEs",
                 len(bridge), len({r["target_cwe"] for r in bridge}))
 
-    # ----- 3. New eval is what's left, plus design-pair eval items -----
+    # ----- 3a. Juliet C/C++ memory-safety eval items (task #186) -----
+    #
+    # 160 items extracted from Juliet 1.3 by extract_juliet_eval_items.py.
+    # Distribution: 20 per (CWE, lang) cell for CWE-787/125/416 (2 Juliet
+    # subcategories each); 10 per cell for CWE-190/476 (single subcategory).
+    # 80% → eval (fills the C++ gap on memory-safety CWEs), 20% → val
+    # (preserves stratified val/eval composition match).
+    juliet_items = []
+    if args.juliet_eval_jsonl is not None and args.juliet_eval_jsonl.exists():
+        juliet_items = _read_jsonl(args.juliet_eval_jsonl)
+        logger.info("loaded Juliet eval items: %d", len(juliet_items))
+    rng_j = random.Random(args.seed + 2)
+    # Per-cell split: 80% eval, 20% val (matches the eval-holdout ratio).
+    j_by_cell: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for r in juliet_items:
+        j_by_cell[(r["target_cwe"], r["language"])].append(r)
+    j_to_eval = []
+    j_to_val = []
+    for cell, items in sorted(j_by_cell.items()):
+        items_sorted = sorted(items, key=lambda r: r["id"])
+        n = len(items_sorted)
+        idx = list(range(n))
+        rng_j.shuffle(idx)
+        n_val = max(1, n // 5) if n >= 5 else 0
+        n_eval = n - n_val
+        j_to_val.extend(items_sorted[i] for i in idx[:n_val])
+        j_to_eval.extend(items_sorted[i] for i in idx[n_val:n_val + n_eval])
+    logger.info("Juliet routed: eval=%d val=%d", len(j_to_eval), len(j_to_val))
+
+    # ----- 3b. Assemble new eval + val with design-pair + Juliet items -----
     held_out = eval_holdouts_keys | bridge_keys
     eval_new = [r for r in eval_ if r["id"] not in held_out]
     eval_new.extend(dp_to_eval)
+    eval_new.extend(j_to_eval)
     val_new.extend(dp_to_val)
-    logger.info("new eval: %d (was %d, held out %d, design_pair +%d)",
-                len(eval_new), len(eval_), len(held_out), len(dp_to_eval))
-    logger.info("new val:  %d (eval_holdout %d + design_pair %d)",
-                len(val_new), len(val_new) - len(dp_to_val), len(dp_to_val))
+    val_new.extend(j_to_val)
+    logger.info("new eval: %d (was %d, held out %d, design_pair +%d, juliet +%d)",
+                len(eval_new), len(eval_), len(held_out),
+                len(dp_to_eval), len(j_to_eval))
+    logger.info("new val:  %d (eval_holdout %d + design_pair %d + juliet %d)",
+                len(val_new),
+                len(val_new) - len(dp_to_val) - len(j_to_val),
+                len(dp_to_val), len(j_to_val))
 
     # ----- 4. Disjointness sanity check -----
     train_ids = {r["id"] for r in train} | bridge_keys | {r["id"] for r in dp_to_train}
