@@ -213,8 +213,12 @@ class TorchPolicy:
             )
             self._model.train()
         else:
-            # Fresh start: wrap with a new LoRA adapter. peft selects target
-            # modules by default per architecture; we leave that auto.
+            # Fresh start: wrap with a new LoRA adapter. peft used to have
+            # per-architecture defaults but newer peft requires explicit
+            # target_modules for some models (e.g. StarCoder2 — observed
+            # 2026-06-18 with `ValueError: Please specify target_modules`).
+            # Default to the standard attention projections used by Qwen2,
+            # StarCoder2, and most modern code LLMs.
             lora_kwargs = {
                 "r": self.config.lora_r,
                 "lora_alpha": self.config.lora_alpha,
@@ -224,6 +228,10 @@ class TorchPolicy:
             }
             if self.config.target_modules is not None:
                 lora_kwargs["target_modules"] = self.config.target_modules
+            else:
+                lora_kwargs["target_modules"] = [
+                    "q_proj", "k_proj", "v_proj", "o_proj",
+                ]
             peft_config = LoraConfig(**lora_kwargs)
             self._model = get_peft_model(base, peft_config)
             self._model.train()
