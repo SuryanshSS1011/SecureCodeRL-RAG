@@ -219,7 +219,16 @@ class _LoraBaselineModel:
         wall = time.monotonic() - t0
         new_ids = output_ids[0, n_input:]
         text = self._tokenizer.decode(new_ids, skip_special_tokens=True)
-        return CompletionResult(text=text, wall_s=wall, ok=True)
+        # CompletionResult fields: text, n_input_tokens, n_output_tokens,
+        # duration_s, crashed, metadata. Old code passed wall_s/ok which
+        # don't exist.
+        return CompletionResult(
+            text=text,
+            n_input_tokens=n_input,
+            n_output_tokens=int(new_ids.shape[0]),
+            duration_s=wall,
+            crashed=False,
+        )
 
 
 def main() -> int:
