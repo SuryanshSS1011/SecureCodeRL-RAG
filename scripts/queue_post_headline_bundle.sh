@@ -60,9 +60,22 @@ submit() {
     local out=$OUT_ROOT/$name
     local hf=$SCRATCH_ROOT/hf_cache/$name
 
-    # Idempotency: skip if a meaningful checkpoint exists.
+    # Idempotency: skip if any of these hold:
+    #   - a checkpoint-N dir exists (cell has progressed)
+    #   - train_log.jsonl exists (cell is mid-stream, may not have hit
+    #     checkpoint-100 yet)
+    #   - there's a job in squeue for this cell name (avoid racing)
     if compgen -G "$out/checkpoint-[1-9]*" > /dev/null 2>&1; then
         echo "SKIP $name: checkpoint already exists in $out"
+        return 0
+    fi
+    if [[ -f "$out/train_log.jsonl" ]]; then
+        echo "SKIP $name: train_log.jsonl already exists in $out (cell mid-stream)"
+        return 0
+    fi
+    if squeue --user="$USER" --noheader --format="%j" 2>/dev/null \
+            | grep -q "^ictai_bundle_$name$"; then
+        echo "SKIP $name: job already in squeue"
         return 0
     fi
 
