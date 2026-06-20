@@ -163,8 +163,21 @@ class RealOracle(ReliabilityOracle):
         # Manual tmpdir mgmt instead of TemporaryDirectory context to
         # tolerate subprocess cleanup races (see pipeline.py for the
         # same fix and the 2026-06-15 incident that prompted both).
+        #
+        # Tmpdir base selection (ROAR-aware): prefer SLURM_TMPDIR (per-job,
+        # large), then a user-controlled override, then a stable fallback
+        # on /scratch (large, persistent), and finally /tmp (small on
+        # ROAR compute nodes — under concurrent load it fills and oracle
+        # mkdir fails with ENOSPC, silently zeroing r_reliability).
+        tmp_base = (
+            os.environ.get("SLURM_TMPDIR")
+            or os.environ.get("ICTAI_ORACLE_TMP")
+            or ("/scratch/sss6371/oracle_tmp"
+                if os.path.isdir("/scratch/sss6371") else None)
+            or tempfile.gettempdir()
+        )
         tmp_name = f"ictai_oracle_{os.getpid()}_{uuid.uuid4().hex[:8]}"
-        work_dir = Path(tempfile.gettempdir()) / tmp_name
+        work_dir = Path(tmp_base) / tmp_name
         work_dir.mkdir(parents=True, exist_ok=True)
         try:
             for name, content in spec.extra_files.items():

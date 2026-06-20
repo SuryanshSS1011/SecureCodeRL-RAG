@@ -201,8 +201,18 @@ class RewardPipeline:
         # (FINDINGS_LOG 2026-06-15). Per-call uniqueness via PID + uuid
         # eliminates collisions. shutil.rmtree(..., ignore_errors=True)
         # tolerates residual subprocess artifacts.
+        # Tmpdir base selection mirrors reliability_oracle.evaluate (ROAR
+        # /tmp is small; under concurrent jobs it fills, causing codeql
+        # ENOSPC crashes seen in v0.1.7 RL cells).
+        tmp_base = (
+            os.environ.get("SLURM_TMPDIR")
+            or os.environ.get("ICTAI_PIPELINE_TMP")
+            or ("/scratch/sss6371/pipeline_tmp"
+                if os.path.isdir("/scratch/sss6371") else None)
+            or tempfile.gettempdir()
+        )
         tmp_name = f"ictai_pipeline_{os.getpid()}_{uuid.uuid4().hex[:8]}"
-        tmp = Path(tempfile.gettempdir()) / tmp_name
+        tmp = Path(tmp_base) / tmp_name
         tmp.mkdir(parents=True, exist_ok=True)
         try:
             summary, merged_findings = self.sast_runner.run(completion, sast_lang, tmp)
