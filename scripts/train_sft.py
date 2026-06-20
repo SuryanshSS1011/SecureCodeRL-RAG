@@ -156,14 +156,28 @@ def main() -> int:
     if args.val_fraction > 0:
         n_val = max(1, int(len(shuffled) * args.val_fraction))
         val_pairs = shuffled[:n_val]
-        pairs = shuffled[n_val:]
+        remainder = shuffled[n_val:]
+        # Train-probe shard: a held-out slice of TRAIN data used only for
+        # loss measurement (never gradient-trained on). Same size as the
+        # val set so the per-pair noise floor matches val_loss and the
+        # train/val gap reading is honest. Comparing train_probe_loss to
+        # val_loss is the canonical SFT overfit signal: if train_probe
+        # drops while val stalls/rises, the model is memorizing
+        # train-distribution patterns rather than learning generalizable
+        # ones. Critical at high LoRA rank (r=64+) where 4,648 pairs +
+        # tens of millions of params makes overfit a real risk.
+        n_probe = min(n_val, len(remainder) // 10)  # cap at 10% of remainder
+        train_probe_pairs = remainder[:n_probe]
+        pairs = remainder[n_probe:]
         logger.info(
-            "train/val split: %d train / %d val (val_fraction=%.3f)",
-            len(pairs), len(val_pairs), args.val_fraction,
+            "train/val/train_probe split: %d train / %d val / %d train_probe "
+            "(val_fraction=%.3f)",
+            len(pairs), len(val_pairs), len(train_probe_pairs), args.val_fraction,
         )
     else:
         pairs = shuffled
         val_pairs = []
+        train_probe_pairs = []
         logger.info("no val split; using rolling-train-loss for checkpoint-best")
 
     # Imports deferred so the script can be smoke-tested without torch.
@@ -329,17 +343,19 @@ def main() -> int:
     val_log_fh = (args.output / "val_log.jsonl").open(log_mode) if val_pairs else None
 
     @torch.no_grad()
-    def _compute_val_loss() -> float:
-        """Mean cross-entropy on the held-out val_pairs. Stable: same pair
-        order and batch composition every call so the trajectory is
-        comparable across steps."""
-        if not val_pairs:
+    def _compute_loss_on(probe_pairs: list[dict]) -> float:
+        """Mean cross-entropy on a fixed held-out shard. Same pair order
+        and batch composition every call → trajectories are comparable
+        across steps. Used for both val_loss (generalization signal) and
+        train_probe_loss (overfit-detection signal). Compute is symmetric
+        so the train_probe / val_loss gap reading is honest."""
+        if not probe_pairs:
             return float("inf")
         model.eval()
         total_loss = 0.0
         total_batches = 0
-        for batch_start in range(0, len(val_pairs), args.batch_size):
-            batch = val_pairs[batch_start : batch_start + args.batch_size]
+        for batch_start in range(0, len(probe_pairs), args.batch_size):
+            batch = probe_pairs[batch_start : batch_start + args.batch_size]
             if not batch:
                 continue
             iids, mask, lbls = _build_batch(batch)
@@ -383,13 +399,29 @@ def main() -> int:
         train_log_fh.flush()
         train_log_buf.append(rec)
 
-        # Periodic val loss eval (cheap; ~5s on a held-out 500-pair set).
+        # Periodic val + train_probe eval (cheap; ~5-10s combined).
+        # Logging both lets readers spot overfit by train_probe << val
+        # divergence — the canonical signal that LoRA capacity has
+        # outgrown the data and the model is memorizing.
         if val_pairs and (step + 1) % args.val_every == 0:
-            v_loss = _compute_val_loss()
-            val_rec = {"step": step + 1, "val_loss": v_loss}
+            v_loss = _compute_loss_on(val_pairs)
+            tp_loss = _compute_loss_on(train_probe_pairs) if train_probe_pairs else float("nan")
+            gap = (v_loss - tp_loss) if train_probe_pairs else float("nan")
+            val_rec = {
+                "step": step + 1,
+                "val_loss": v_loss,
+                "train_probe_loss": tp_loss,
+                "overfit_gap": gap,  # val - train_probe: positive = overfit
+            }
             val_log_fh.write(json.dumps(val_rec) + "\n")
             val_log_fh.flush()
-            logger.info("step %d val_loss=%.4f", step + 1, v_loss)
+            if train_probe_pairs:
+                logger.info(
+                    "step %d val_loss=%.4f train_probe_loss=%.4f gap=%+.4f",
+                    step + 1, v_loss, tp_loss, gap,
+                )
+            else:
+                logger.info("step %d val_loss=%.4f", step + 1, v_loss)
 
         if (step + 1) % args.save_every == 0 or (step + 1) == args.total_steps:
             ck = args.output / f"checkpoint-{step + 1}"
@@ -417,7 +449,7 @@ def main() -> int:
                 # Use the val_loss just computed (val_every is aligned to
                 # save_every here; if not, recompute).
                 if (step + 1) % args.val_every != 0:
-                    v_loss = _compute_val_loss()
+                    v_loss = _compute_loss_on(val_pairs)
                 else:
                     v_loss = val_rec["val_loss"]  # type: ignore[possibly-undefined]
                 if v_loss < best_val_loss:
