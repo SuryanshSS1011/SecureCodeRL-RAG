@@ -99,7 +99,32 @@ def main() -> int:
                         "to rolling-train-loss best).")
     p.add_argument("--val-every", type=int, default=100,
                    help="Run val loss eval every N steps (cheap; ~5s per pass).")
+    p.add_argument("--resume-from", type=Path, default=None,
+                   help="STRICT resume from a checkpoint-N directory written "
+                        "by a recent run of this script. Requires all of "
+                        "adapter/, optimizer.pt, and training_state.pt; "
+                        "raises FileNotFoundError if any is missing (use "
+                        "--warm-start-adapter instead for older checkpoints "
+                        "that lack the state files). Resumes step counter, "
+                        "AdamW moments, RNG; scheduler is rebuilt against "
+                        "--total-steps and fast-forwarded. Logs appended.")
+    p.add_argument("--warm-start-adapter", type=Path, default=None,
+                   help="Load LoRA adapter weights from a checkpoint dir; "
+                        "step counter starts at 0; AdamW + RNG cold. Used "
+                        "when no optimizer.pt / training_state.pt exists "
+                        "(e.g. checkpoints produced by an old commit). "
+                        "This is a DIFFERENT EXPERIMENT than --resume-from "
+                        "and must be reported as a warm-start in any paper "
+                        "claim.")
     args = p.parse_args()
+
+    # Validate flags BEFORE doing any heavy work (file loading, model
+    # download). Mutual-exclusion check belongs here so the user gets a
+    # clean error immediately, not after the SFT pair file is parsed.
+    if args.resume_from is not None and args.warm_start_adapter is not None:
+        p.error(
+            "--resume-from and --warm-start-adapter are mutually exclusive"
+        )
 
     logging.basicConfig(
         level=logging.INFO,
@@ -177,7 +202,82 @@ def main() -> int:
     lr_lambda = _build_lr_lambda(args.total_steps, args.warmup_ratio, args.min_lr_rate)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
-    train_log_fh = (args.output / "train_log.jsonl").open("w")
+    # Resume: load adapter weights + optimizer + RNG + step counter from
+    # a prior checkpoint. The scheduler is REBUILT against the new
+    # args.total_steps above (not the previous run's), then fast-forwarded
+    # to start_step so cosine decay runs cleanly to the new end. Logs
+    # are appended to (not truncated) to preserve trajectory continuity.
+    #
+    # Two distinct modes via --resume-from / --warm-start-adapter:
+    #   --resume-from <ckpt>      : strict; requires optimizer.pt +
+    #                               training_state.pt + adapter/; raises
+    #                               if any is missing. Used to continue a
+    #                               run with proper data-ordering and
+    #                               optimizer-state continuity.
+    #   --warm-start-adapter <ck> : loose; loads adapter weights only,
+    #                               starts step counter at 0, cold AdamW.
+    #                               Explicitly distinct from --resume so
+    #                               we never silently degrade a resume
+    #                               into a warm-start (the 2026-06-20
+    #                               incident where this script logged
+    #                               "resume" but actually did a cold
+    #                               warm-start and the operator reported
+    #                               it as a resume).
+    # Mutual-exclusion of --resume-from / --warm-start-adapter is
+    # validated above at parse-args time.
+    start_step = 0
+    if args.resume_from is not None:
+        resume_adapter = args.resume_from / "adapter"
+        opt_path = args.resume_from / "optimizer.pt"
+        state_path = args.resume_from / "training_state.pt"
+        missing = [
+            str(p) for p in (resume_adapter / "adapter_config.json",
+                             opt_path, state_path) if not p.exists()
+        ]
+        if missing:
+            raise FileNotFoundError(
+                "--resume-from refuses to silently degrade to a cold "
+                "warm-start. The following required files are missing: "
+                + ", ".join(missing)
+                + ". Either point --resume-from at a checkpoint produced "
+                "by a recent train_sft.py (commit 2885052 or later), or "
+                "use --warm-start-adapter to do an explicit cold-AdamW "
+                "warm-start from the adapter weights only."
+            )
+        from peft import PeftModel  # noqa: F401  (import side effect)
+        model.load_adapter(str(resume_adapter), adapter_name="default")
+        optimizer.load_state_dict(torch.load(opt_path, map_location=args.device))
+        st = torch.load(state_path, map_location="cpu")
+        start_step = int(st["step"])
+        rng = np.random.default_rng()
+        rng.bit_generator.state = st["rng_state_np"]
+        torch.set_rng_state(st["rng_state_torch"])
+        if st.get("rng_state_cuda") is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all(st["rng_state_cuda"])
+        # Fast-forward the scheduler so lr matches the resume step.
+        for _ in range(start_step):
+            scheduler.step()
+        logger.info(
+            "RESUMED from step %d (adapter + optimizer + RNG); "
+            "scheduler fast-forwarded (lr=%.2e); training to step %d.",
+            start_step, optimizer.param_groups[0]["lr"], args.total_steps,
+        )
+    elif args.warm_start_adapter is not None:
+        warm_adapter = args.warm_start_adapter / "adapter"
+        if not (warm_adapter / "adapter_config.json").exists():
+            raise FileNotFoundError(
+                f"--warm-start-adapter {args.warm_start_adapter}: "
+                "missing adapter/adapter_config.json"
+            )
+        model.load_adapter(str(warm_adapter), adapter_name="default")
+        logger.info(
+            "WARM-STARTED from %s (adapter weights only; AdamW cold; "
+            "RNG cold; step counter starts at 0; training to step %d).",
+            warm_adapter, args.total_steps,
+        )
+
+    log_mode = "a" if start_step > 0 else "w"
+    train_log_fh = (args.output / "train_log.jsonl").open(log_mode)
     t0 = time.monotonic()
 
     def _build_batch(rows: list[dict]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -226,7 +326,7 @@ def main() -> int:
     train_log_buf: list[dict] = []
     best_val_loss: float = float("inf")
     best_step: int = 0
-    val_log_fh = (args.output / "val_log.jsonl").open("w") if val_pairs else None
+    val_log_fh = (args.output / "val_log.jsonl").open(log_mode) if val_pairs else None
 
     @torch.no_grad()
     def _compute_val_loss() -> float:
@@ -252,7 +352,7 @@ def main() -> int:
         model.train()
         return total_loss / max(1, total_batches)
 
-    for step in range(args.total_steps):
+    for step in range(start_step, args.total_steps):
         idx = rng.integers(0, len(pairs), size=args.batch_size)
         batch = [pairs[i] for i in idx]
         input_ids, attention_mask, labels = _build_batch(batch)
@@ -295,6 +395,19 @@ def main() -> int:
             ck = args.output / f"checkpoint-{step + 1}"
             ck.mkdir(parents=True, exist_ok=True)
             model.save_pretrained(str(ck / "adapter"))
+            # Save optimizer + training state so a future --resume-from
+            # can continue without restarting AdamW moments cold and
+            # without re-shuffling the prompt ordering.
+            torch.save(optimizer.state_dict(), ck / "optimizer.pt")
+            torch.save({
+                "step": step + 1,
+                "rng_state_np": rng.bit_generator.state,
+                "rng_state_torch": torch.get_rng_state(),
+                "rng_state_cuda": (
+                    torch.cuda.get_rng_state_all()
+                    if torch.cuda.is_available() else None
+                ),
+            }, ck / "training_state.pt")
             logger.info("saved checkpoint at step %d to %s", step + 1, ck)
 
             # Checkpoint-best selection. Primary: held-out val loss
