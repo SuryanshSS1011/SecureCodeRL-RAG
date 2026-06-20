@@ -93,6 +93,12 @@ def main() -> int:
                         "Anything longer is dropped silently.")
     p.add_argument("--save-every", type=int, default=100)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--val-fraction", type=float, default=0.1,
+                   help="Fraction of pairs held out for val-loss-driven "
+                        "checkpoint-best selection. 0.0 disables (falls back "
+                        "to rolling-train-loss best).")
+    p.add_argument("--val-every", type=int, default=100,
+                   help="Run val loss eval every N steps (cheap; ~5s per pass).")
     args = p.parse_args()
 
     logging.basicConfig(
@@ -109,11 +115,31 @@ def main() -> int:
         )
     )
 
-    pairs = _load_sft_pairs(args.sft_pairs)
-    logger.info("loaded %d SFT pairs from %s", len(pairs), args.sft_pairs)
-    if not pairs:
+    all_pairs = _load_sft_pairs(args.sft_pairs)
+    logger.info("loaded %d SFT pairs from %s", len(all_pairs), args.sft_pairs)
+    if not all_pairs:
         logger.error("empty SFT pair set; nothing to train")
         return 1
+
+    # Train/val split. Use a deterministic shuffle keyed off args.seed so
+    # the same split is reproducible across reruns and so the val set
+    # doesn't leak into the train batches.
+    import random as _random
+    split_rng = _random.Random(args.seed)
+    shuffled = list(all_pairs)
+    split_rng.shuffle(shuffled)
+    if args.val_fraction > 0:
+        n_val = max(1, int(len(shuffled) * args.val_fraction))
+        val_pairs = shuffled[:n_val]
+        pairs = shuffled[n_val:]
+        logger.info(
+            "train/val split: %d train / %d val (val_fraction=%.3f)",
+            len(pairs), len(val_pairs), args.val_fraction,
+        )
+    else:
+        pairs = shuffled
+        val_pairs = []
+        logger.info("no val split; using rolling-train-loss for checkpoint-best")
 
     # Imports deferred so the script can be smoke-tested without torch.
     import numpy as np
@@ -194,6 +220,38 @@ def main() -> int:
         labels[attention_mask == 0] = -100
         return input_ids, attention_mask, labels
 
+    # checkpoint-best tracking. Primary signal is held-out val loss
+    # (--val-fraction > 0). Fallback is rolling-window train loss when
+    # no val set is held out.
+    train_log_buf: list[dict] = []
+    best_val_loss: float = float("inf")
+    best_step: int = 0
+    val_log_fh = (args.output / "val_log.jsonl").open("w") if val_pairs else None
+
+    @torch.no_grad()
+    def _compute_val_loss() -> float:
+        """Mean cross-entropy on the held-out val_pairs. Stable: same pair
+        order and batch composition every call so the trajectory is
+        comparable across steps."""
+        if not val_pairs:
+            return float("inf")
+        model.eval()
+        total_loss = 0.0
+        total_batches = 0
+        for batch_start in range(0, len(val_pairs), args.batch_size):
+            batch = val_pairs[batch_start : batch_start + args.batch_size]
+            if not batch:
+                continue
+            iids, mask, lbls = _build_batch(batch)
+            iids = iids.to(args.device)
+            mask = mask.to(args.device)
+            lbls = lbls.to(args.device)
+            out = model(input_ids=iids, attention_mask=mask, labels=lbls)
+            total_loss += float(out.loss.detach().item())
+            total_batches += 1
+        model.train()
+        return total_loss / max(1, total_batches)
+
     for step in range(args.total_steps):
         idx = rng.integers(0, len(pairs), size=args.batch_size)
         batch = [pairs[i] for i in idx]
@@ -223,6 +281,15 @@ def main() -> int:
         }
         train_log_fh.write(json.dumps(rec) + "\n")
         train_log_fh.flush()
+        train_log_buf.append(rec)
+
+        # Periodic val loss eval (cheap; ~5s on a held-out 500-pair set).
+        if val_pairs and (step + 1) % args.val_every == 0:
+            v_loss = _compute_val_loss()
+            val_rec = {"step": step + 1, "val_loss": v_loss}
+            val_log_fh.write(json.dumps(val_rec) + "\n")
+            val_log_fh.flush()
+            logger.info("step %d val_loss=%.4f", step + 1, v_loss)
 
         if (step + 1) % args.save_every == 0 or (step + 1) == args.total_steps:
             ck = args.output / f"checkpoint-{step + 1}"
@@ -230,10 +297,53 @@ def main() -> int:
             model.save_pretrained(str(ck / "adapter"))
             logger.info("saved checkpoint at step %d to %s", step + 1, ck)
 
+            # Checkpoint-best selection. Primary: held-out val loss
+            # (computed just above when --val-fraction > 0). Fallback:
+            # rolling mean of last save_every train losses.
+            if val_pairs:
+                # Use the val_loss just computed (val_every is aligned to
+                # save_every here; if not, recompute).
+                if (step + 1) % args.val_every != 0:
+                    v_loss = _compute_val_loss()
+                else:
+                    v_loss = val_rec["val_loss"]  # type: ignore[possibly-undefined]
+                if v_loss < best_val_loss:
+                    best_val_loss = v_loss
+                    best_step = step + 1
+                    best_link = args.output / "checkpoint-best"
+                    if best_link.exists() or best_link.is_symlink():
+                        best_link.unlink()
+                    best_link.symlink_to(ck.name)
+                    logger.info(
+                        "checkpoint-best -> checkpoint-%d (val_loss=%.4f)",
+                        step + 1, v_loss,
+                    )
+            else:
+                recent = [r["loss"] for r in train_log_buf[-args.save_every:]]
+                window_loss = sum(recent) / max(1, len(recent))
+                if window_loss < best_val_loss:
+                    best_val_loss = window_loss
+                    best_step = step + 1
+                    best_link = args.output / "checkpoint-best"
+                    if best_link.exists() or best_link.is_symlink():
+                        best_link.unlink()
+                    best_link.symlink_to(ck.name)
+                    logger.info(
+                        "checkpoint-best -> checkpoint-%d (window_train_loss=%.4f)",
+                        step + 1, window_loss,
+                    )
+
     # Final adapter location matches the RL training output: <output>/adapter
     model.save_pretrained(str(args.output / "adapter"))
     train_log_fh.close()
-    logger.info("SFT-only training complete; final adapter at %s/adapter", args.output)
+    if val_log_fh is not None:
+        val_log_fh.close()
+    selection_signal = "val_loss" if val_pairs else "window_train_loss"
+    logger.info(
+        "SFT-only training complete; final adapter at %s/adapter; "
+        "checkpoint-best -> checkpoint-%d (%s=%.4f)",
+        args.output, best_step, selection_signal, best_val_loss,
+    )
     return 0
 
 
