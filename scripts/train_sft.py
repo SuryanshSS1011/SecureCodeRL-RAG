@@ -80,6 +80,11 @@ def main() -> int:
     p.add_argument("--lora-r", type=int, default=16)
     p.add_argument("--lora-alpha", type=int, default=32)
     p.add_argument("--lora-dropout", type=float, default=0.05)
+    p.add_argument("--no-lora", action="store_true",
+                   help="Full fine-tune the base model (no LoRA). All "
+                        "parameters trainable. Used for the LoRA-rank-ceiling "
+                        "ablation: full-FT is the asymptotic upper bound that "
+                        "no LoRA rank can beat.")
     p.add_argument("--learning-rate", type=float, default=1e-5,
                    help="SFT uses higher LR than RL (1e-5 vs 1e-6 RL) since "
                         "the loss is cross-entropy not policy gradient.")
@@ -201,15 +206,23 @@ def main() -> int:
     model = AutoModelForCausalLM.from_pretrained(args.model_id, dtype=dtype)
     model = model.to(args.device)
 
-    lora_cfg = LoraConfig(
-        r=args.lora_r,
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-    model = get_peft_model(model, lora_cfg)
-    model.print_trainable_parameters()
+    if args.no_lora:
+        logger.info("--no-lora set: full fine-tuning (all params trainable)")
+        n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        n_total = sum(p.numel() for p in model.parameters())
+        logger.info("trainable params: %s / %s (%.4f%%)",
+                    f"{n_trainable:,}", f"{n_total:,}",
+                    100.0 * n_trainable / max(1, n_total))
+    else:
+        lora_cfg = LoraConfig(
+            r=args.lora_r,
+            lora_alpha=args.lora_alpha,
+            lora_dropout=args.lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, lora_cfg)
+        model.print_trainable_parameters()
 
     trainable = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(trainable, lr=args.learning_rate)
