@@ -66,9 +66,14 @@ def main() -> int:
     from secure_code_rl_ictai.eval.model import HfBaselineModel, SamplingConfig
     from secure_code_rl_ictai.data_prep.schema import Prompt
     from secure_code_rl_ictai.data_prep import normalize_language, normalize_cwe
-    from secure_code_rl_ictai.reward.reliability_oracle import TestCase, TestSpec, RealOracle
-    from secure_code_rl_ictai.reward.pipeline import RewardPipeline
-    from secure_code_rl_ictai.reward.calculator import RewardCalculator, RewardConfig
+    from secure_code_rl_ictai.reward.reliability_oracle import TestCase, TestSpec
+    # Reuse the SAST+oracle+severity-source pipeline builder from
+    # headline_eval so eval scoring is byte-identical to the trained-cell
+    # evals. Reimplementing here was the source of an earlier launch
+    # failure (missing required positional args sast_runner +
+    # severity_source on RewardPipeline).
+    sys.path.insert(0, str(Path(__file__).parent))
+    from headline_eval import _build_real_pipeline
 
     # Load eval prompts (mirrors headline_eval.py).
     prompts: list[Prompt] = []
@@ -114,17 +119,10 @@ def main() -> int:
     # Base model.
     model = HfBaselineModel(name=f"base_{args.mode}", model_id=args.model_id)
 
-    # Reward pipeline (real oracle + SAST, NO RAG-in-reward; we are eval-time
-    # only). For --mode=rag, retrieval happens at inference time via
-    # EvalHarness's prepend hook, not in the reward path.
-    oracle = RealOracle()
-    calc = RewardCalculator(RewardConfig())
-    pipeline = RewardPipeline(
-        calculator=calc,
-        oracle=oracle,
-        retriever=None,  # reward-time RAG disabled
-        embedder=None,
-    )
+    # Reward pipeline (real oracle + SAST + severity, NO RAG-in-reward).
+    # For --mode=rag, retrieval happens at inference time via the
+    # EvalHarness prompt_transform hook below, not in the reward path.
+    pipeline = _build_real_pipeline()
 
     sampling = SamplingConfig(
         temperature=args.temperature,
