@@ -313,20 +313,47 @@ def main() -> int:
         Returns (input_ids, attention_mask, labels). labels[i, j] = -100
         for prompt tokens and pad tokens; the completion tokens are
         kept so cross-entropy is computed only on them.
+
+        Formatting MUST match the RL trainer (rl/torch_policy.py
+        :_format_prompt) and the eval harness (eval/model.py
+        :_format_prompt): both use tokenizer.apply_chat_template with
+        add_generation_prompt=True. Training on a different prompt
+        format silently mismatches the LoRA adapter's input distribution
+        between train and eval — the 2026-06-22 bug fix.
+
+        The completion is wrapped in a language-keyed Markdown fence
+        because the prompt explicitly asks for "the complete function
+        body wrapped in a ```<lang> ... ``` block" and the eval
+        harness's _extract_code looks for that fence. row["secure_completion"]
+        in v0.1.7 is bare code (no fence).
+
+        Both prompt-len probe and full-text encoding use
+        add_special_tokens=False because apply_chat_template already
+        inserts whatever special tokens the model needs (for Qwen2.5
+        that's <|im_start|>/<|im_end|>; no BOS).
         """
+        eos = tokenizer.eos_token or ""
         texts = []
         prompt_lens = []
         for row in rows:
             prompt_text = row["prompt_text"]
             secure = row["secure_completion"]
-            # Standard SFT formatting: prompt then completion, separated
-            # by a newline. The tokenizer's chat template would also work
-            # but we match the RL trainer's plain-prompt format.
-            full = prompt_text.rstrip() + "\n" + secure
-            texts.append(full)
+            lang = (row.get("language") or "").lower()
+            fence_lang = {"c": "c", "cpp": "cpp", "python": "python"}.get(lang, "")
+            wrapped_completion = f"```{fence_lang}\n{secure}\n```"
+            formatted_prompt = tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt_text}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+            full_text = formatted_prompt + wrapped_completion + eos
+            texts.append(full_text)
             # Length of the prompt portion (we need this to mask labels).
+            # Use add_special_tokens=False so this matches the full-text
+            # encoding below; the chat template already carries any
+            # required special tokens.
             prompt_ids = tokenizer(
-                prompt_text.rstrip() + "\n",
+                formatted_prompt,
                 add_special_tokens=False,
             )["input_ids"]
             prompt_lens.append(len(prompt_ids))
@@ -337,6 +364,7 @@ def main() -> int:
             truncation=True,
             padding="longest",
             return_tensors="pt",
+            add_special_tokens=False,
         )
         input_ids = encoded["input_ids"]
         attention_mask = encoded["attention_mask"]
