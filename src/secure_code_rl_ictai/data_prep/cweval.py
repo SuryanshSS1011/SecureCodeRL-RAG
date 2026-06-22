@@ -258,7 +258,7 @@ class CwevalAdapter(DataAdapter):
             logger.warning("failed to read %s: %s", task_path, exc)
             return None
 
-        signature, prompt_text = _split_prompt(text, language)
+        signature, prompt_text, prefix_text, suffix_text = _split_prompt(text, language)
         if not prompt_text.strip():
             return None
 
@@ -278,8 +278,16 @@ class CwevalAdapter(DataAdapter):
         #
         # C/C++ CWEval prompts are deferred — their test drivers are also
         # Python files but they invoke a compiled binary, which needs
-        # additional wireup we haven't done.
-        test_spec = TestSpec(language=language, test_cases=[])
+        # additional wireup we haven't done. We DO populate prefix_text
+        # and suffix_text on the TestSpec so that the oracle can splice
+        # the model's body-only completion back into the original TU
+        # (includes + helpers + main) before attempting to compile.
+        test_spec = TestSpec(
+            language=language,
+            test_cases=[],
+            prefix_text=prefix_text if language != Language.PYTHON else None,
+            suffix_text=suffix_text if language != Language.PYTHON else None,
+        )
         if language == Language.PYTHON and test_path.suffix == ".py":
             try:
                 test_src = test_path.read_text(errors="replace")
@@ -324,8 +332,10 @@ class CwevalAdapter(DataAdapter):
         )
 
 
-def _split_prompt(text: str, language: Language) -> tuple[str, str]:
-    """Return (signature, prompt_text).
+def _split_prompt(
+    text: str, language: Language
+) -> tuple[str, str, Optional[str], Optional[str]]:
+    """Return (signature, prompt_text, prefix_text, suffix_text).
 
     Marker conventions in CWEval (verified against the real Co1lin/CWEval):
       - Python: a single `# BEGIN SOLUTION` marker ends the prompt. The
@@ -334,6 +344,14 @@ def _split_prompt(text: str, language: Language) -> tuple[str, str]:
       - C / C++: a `// BEGIN PROMPT` marker delimits the *start* of the
         prompt (because the file has helper functions and includes
         before it). A `// BEGIN SOLUTION` marker ends the prompt.
+
+    `prefix_text` is the file content *before* `BEGIN PROMPT` (the
+    original includes + helper functions); `suffix_text` is the content
+    *after* `BEGIN SOLUTION` (the helper main / driver). These are only
+    populated for C / C++ (Python prompts run as a module, not as a
+    standalone TU, so they don't need splice context). The oracle uses
+    them in `_eval_c_family` to reattach the surrounding TU before
+    compiling the model's body-only completion.
     """
     begin_prompt = re.compile(
         r"^[ \t]*(?://|/\*)\s*BEGIN PROMPT\b.*$", re.MULTILINE
@@ -343,16 +361,89 @@ def _split_prompt(text: str, language: Language) -> tuple[str, str]:
     )
 
     start = 0
+    prefix_text: Optional[str] = None
     if language != Language.PYTHON:
         m_start = begin_prompt.search(text)
         if m_start is not None:
+            # Everything up to and including the BEGIN PROMPT line is
+            # the prefix the model will not see but the compiler needs:
+            # includes, typedefs, helpers, etc.
+            prefix_end = m_start.end()
+            # Capture through the newline after BEGIN PROMPT (if any) so
+            # the prefix ends cleanly at a line boundary.
+            if prefix_end < len(text) and text[prefix_end] == "\n":
+                prefix_end += 1
+            prefix_text = text[:prefix_end]
             # Slice from the line AFTER the BEGIN PROMPT marker.
-            start = m_start.end() + 1
+            start = prefix_end
 
     end = len(text)
+    suffix_text: Optional[str] = None
     m_end = begin_solution.search(text, pos=start)
     if m_end is not None:
         end = m_end.start()
+        if language != Language.PYTHON:
+            # The text after BEGIN SOLUTION contains the dataset's
+            # reference implementation (which the model is replacing)
+            # followed by trailing main()/driver code. To splice cleanly
+            # we want to drop the reference body and keep the trailing
+            # code. Brace-balance from BEGIN SOLUTION forward: at this
+            # point the function is mid-body (one open brace from
+            # BEGIN PROMPT), so we count `depth = 1` and walk to the
+            # matching `}` to find the end of the function. Everything
+            # after that `}` is the suffix to splice back in.
+            depth = 1
+            i = m_end.end()
+            n = len(text)
+            close_idx = None
+            in_line_comment = False
+            in_block_comment = False
+            in_string = False
+            string_char = ""
+            while i < n:
+                c = text[i]
+                nxt = text[i + 1] if i + 1 < n else ""
+                if in_line_comment:
+                    if c == "\n":
+                        in_line_comment = False
+                elif in_block_comment:
+                    if c == "*" and nxt == "/":
+                        in_block_comment = False
+                        i += 1
+                elif in_string:
+                    if c == "\\" and nxt:
+                        i += 1
+                    elif c == string_char:
+                        in_string = False
+                else:
+                    if c == "/" and nxt == "/":
+                        in_line_comment = True
+                        i += 1
+                    elif c == "/" and nxt == "*":
+                        in_block_comment = True
+                        i += 1
+                    elif c in ("'", '"'):
+                        in_string = True
+                        string_char = c
+                    elif c == "{":
+                        depth += 1
+                    elif c == "}":
+                        depth -= 1
+                        if depth == 0:
+                            close_idx = i
+                            break
+                i += 1
+            if close_idx is not None:
+                # Keep the closing `}` (so the spliced function is
+                # complete) plus everything after it (trailing main/
+                # driver, etc.).
+                suffix_text = text[close_idx:]
+            else:
+                # Fallback: include everything from BEGIN SOLUTION as
+                # the suffix. Better than dropping it entirely — at
+                # worst the compile fails the way it would have without
+                # the splice.
+                suffix_text = text[m_end.start():]
 
     prompt_text = text[start:end].rstrip() + "\n"
 
@@ -374,4 +465,4 @@ def _split_prompt(text: str, language: Language) -> tuple[str, str]:
                 signature = s.rstrip("{").strip()
                 break
 
-    return signature, prompt_text
+    return signature, prompt_text, prefix_text, suffix_text

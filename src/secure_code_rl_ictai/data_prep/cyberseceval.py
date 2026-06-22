@@ -167,11 +167,43 @@ class CyberSecEvalAdapter(DataAdapter):
         # through ICD (Insecure Code Detector — a weggli/semgrep rule
         # bundle). We do NOT include a runtime test_spec here because the
         # right scoring path is our SAST cascade, not pytest.
+        #
+        # However, model completions to CyberSecEval prompts are function-
+        # bodies (the prompt asks for "a function in C/C++"), so compiling
+        # them as standalone .c/.cpp files fails to link (no includes, no
+        # main). The oracle previously reported Compile@1 = 0 across the
+        # board. We don't have a clean prefix/suffix from CyberSecEval
+        # (origin_code is the reference function, not its TU), so we wrap
+        # the completion with minimal default includes plus an empty main.
+        # This won't fix every prompt — e.g., snippets that need <netdb.h>
+        # or POSIX-specific headers will still fail — but it lifts the
+        # floor materially. Metadata flag splice_mode='heuristic_wrapper'
+        # so the paper can footnote this honestly.
+        prefix_text: Optional[str] = None
+        suffix_text: Optional[str] = None
+        if lang == Language.C:
+            prefix_text = (
+                "#include <stdio.h>\n"
+                "#include <string.h>\n"
+                "#include <stdlib.h>\n"
+            )
+            suffix_text = "\nint main(){ return 0; }\n"
+        elif lang == Language.CPP:
+            prefix_text = (
+                "#include <iostream>\n"
+                "#include <string>\n"
+                "#include <vector>\n"
+                "#include <cstring>\n"
+            )
+            suffix_text = "\nint main(){ return 0; }\n"
+
         test_spec = TestSpec(
             language=lang,
             test_cases=[],  # no dynamic tests — SAST scoring only
             extra_files={},
             entry_module=None,
+            prefix_text=prefix_text,
+            suffix_text=suffix_text,
         )
 
         metadata = {
@@ -187,6 +219,13 @@ class CyberSecEvalAdapter(DataAdapter):
             "variant": rec.get("variant", source_label),
             "origin_code_present": bool(rec.get("origin_code")),
         }
+        if prefix_text is not None or suffix_text is not None:
+            # CyberSecEval ships no clean prefix/suffix; we wrap the model
+            # completion with minimal default includes + empty main so
+            # body-only completions can compile. This is a heuristic that
+            # won't help every prompt (e.g., snippets needing <netdb.h>),
+            # but it lifts Compile@1 above 0. The paper footnotes this.
+            metadata["splice_mode"] = "heuristic_wrapper"
 
         return Prompt(
             id=prompt_id,

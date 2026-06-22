@@ -113,19 +113,25 @@ _BAD_FN_RE = re.compile(
 )
 
 
-def _extract_function_body(text: str, signature_re: re.Pattern) -> tuple[str, str] | None:
-    """Find first match of signature_re, return (signature_line, body) or None.
+def _extract_function_body(
+    text: str, signature_re: re.Pattern
+) -> tuple[str, str, int, int, int] | None:
+    """Find first match of signature_re, return body + brace positions.
 
-    Mirrors juliet.py's _extract_function_body but also returns the signature
-    line so we can use it as task_signature in the Prompt.
+    Returns (signature_line, body, match_start, brace_open_idx,
+    brace_close_idx) or None.
+
+    The brace indices are absolute byte offsets into `text`; the caller
+    uses them to construct prefix_text (everything up to and including
+    the `{`) and suffix_text (everything from the matching `}` onward).
     """
     m = signature_re.search(text)
     if m is None:
         return None
     sig_line = text[m.start():m.end() - 1].strip()
-    start = m.end() - 1
+    brace_open = m.end() - 1
     depth = 0
-    i = start
+    i = brace_open
     while i < len(text):
         c = text[i]
         if c == "{":
@@ -133,8 +139,8 @@ def _extract_function_body(text: str, signature_re: re.Pattern) -> tuple[str, st
         elif c == "}":
             depth -= 1
             if depth == 0:
-                body = text[start + 1:i].strip("\n")
-                return sig_line, body
+                body = text[brace_open + 1:i].strip("\n")
+                return sig_line, body, m.start(), brace_open, i
         i += 1
     return None
 
@@ -162,13 +168,30 @@ def _mk_id(*parts: str) -> str:
 
 def _build_prompt(
     *, our_cwe: str, language: str, bad_signature: str, bad_body: str,
-    source_file: Path, signature_hint: str,
+    source_file: Path, signature_hint: str, full_source: str,
+    bad_fn_match_start: int, bad_fn_brace_open: int, bad_fn_brace_close: int,
+    testcasesupport: dict[str, str],
 ) -> dict:
     """Construct a v0.1.7-shape eval record from Juliet bad-function content.
 
     The prompt asks the model to produce a SECURE version of the same
     function (replacing the bad implementation), wrapped in a code-fence,
     SAST-scored.
+
+    Splice context (added 2026-06-22):
+      - prefix_text = everything in the original Juliet .c/.cpp file
+        before the `bad()` function header, plus the header itself and
+        the opening `{`. This contains `#include "std_testcase.h"`,
+        helper #define's, `static void bad_sink()` declarations, etc.
+        Without this prefix the oracle could not compile the model's
+        body-only completion (no includes, no helper types, no headers).
+      - suffix_text = everything after the closing `}` of the `bad()`
+        function. This includes the OMITGOOD / OMITBAD guards and the
+        good-variant functions; the oracle reattaches it so the TU is
+        complete.
+      - extra_files = testcasesupport/ contents (`std_testcase.h`,
+        `std_testcase_io.h`, etc.) so `#include "std_testcase.h"` in
+        the prefix actually resolves.
     """
     lang_label = {"c": "C", "cpp": "C++"}[language]
     fence = {"c": "c", "cpp": "cpp"}[language]
@@ -193,6 +216,13 @@ def _build_prompt(
             juliet_child_cwe = part.split("_")[0]
             break
 
+    # Splice context. The prefix is everything up to and including the
+    # opening `{` of bad(); the suffix is everything after the matching
+    # closing `}`. The model emits the body content; the oracle puts the
+    # body between prefix and suffix to form a compilable TU.
+    prefix_text = full_source[: bad_fn_brace_open + 1] + "\n"
+    suffix_text = full_source[bad_fn_brace_close:]
+
     item_id = _mk_id(our_cwe, language, source_file.name)
     return {
         "id": item_id,
@@ -203,17 +233,20 @@ def _build_prompt(
         "test_spec": {
             "language": language,
             "test_cases": [],
-            "extra_files": {},
+            "extra_files": dict(testcasesupport),
             "compile_flags": ["-O0", "-g"],
             "entry_module": None,
+            "prefix_text": prefix_text,
+            "suffix_text": suffix_text,
         },
         "task_signature": signature_hint or bad_signature,
         "metadata": {
-            "adapter_version": "juliet_eval_0.1",
+            "adapter_version": "juliet_eval_0.2",
             "dataset_version": "juliet-1.3",
             "source_file": str(source_file.name),
             "juliet_child_cwe": juliet_child_cwe,
             "scoring": "SAST-only (cppcheck/flawfinder/clang-tidy)",
+            "splice_mode": "juliet_function_body",
         },
     }
 
@@ -235,6 +268,51 @@ def main() -> int:
     if not c_testcases.exists():
         logger.error("Juliet C/testcases dir not found at %s", c_testcases)
         return 2
+
+    # Load testcasesupport/ headers. These live alongside the testcases
+    # directory (juliet_root/C/testcasesupport/) and are required to
+    # compile any Juliet test file: `std_testcase.h`, `std_testcase_io.h`,
+    # `io.c`. We embed them as extra_files on each TestSpec so the
+    # oracle materializes them into the work_dir before invoking gcc/g++.
+    #
+    # IMPORTANT: Only ship the per-testcase support headers. The
+    # `main.cpp`, `main_linux.cpp`, and `testcases.h` files in this
+    # directory are auto-generated harness compendiums (~20MB each)
+    # that include every Juliet testcase symbol; including them in
+    # extra_files would inflate eval_prompts.jsonl by ~60GB and the
+    # individual testcases don't need them to compile in isolation.
+    _SUPPORT_ALLOWLIST = {
+        "std_testcase.h",
+        "std_testcase_io.h",
+        "std_thread.h",
+        "io.c",
+        "std_thread.c",
+    }
+    support_dir = args.juliet_root / "C" / "testcasesupport"
+    testcasesupport_files: dict[str, str] = {}
+    if support_dir.exists():
+        for support_file in sorted(support_dir.iterdir()):
+            if not support_file.is_file():
+                continue
+            if support_file.name not in _SUPPORT_ALLOWLIST:
+                continue
+            try:
+                testcasesupport_files[support_file.name] = support_file.read_text(
+                    errors="replace"
+                )
+            except OSError as e:
+                logger.warning("could not read %s: %s", support_file, e)
+        logger.info(
+            "loaded %d testcasesupport files (%s)",
+            len(testcasesupport_files),
+            ", ".join(sorted(testcasesupport_files.keys())),
+        )
+    else:
+        logger.warning(
+            "testcasesupport dir not found at %s — extra_files will be empty "
+            "and the oracle won't be able to resolve #include \"std_testcase.h\"",
+            support_dir,
+        )
 
     # Phase 1: collect ALL candidate files per (our_cwe, language) across
     # the (possibly multiple) Juliet subdirs that map to the same our_cwe.
@@ -293,7 +371,7 @@ def main() -> int:
                     extracted = _extract_function_body(text, _BAD_FN_RE)
                     if extracted is None:
                         continue
-                    sig_line, body = extracted
+                    sig_line, body, match_start, brace_open, brace_close = extracted
                     if not body.strip() or len(body) > 4000:
                         continue
                     hint = _extract_signature_hint(text)
@@ -301,6 +379,11 @@ def main() -> int:
                         our_cwe=our_cwe, language=language,
                         bad_signature=sig_line, bad_body=body,
                         source_file=src, signature_hint=hint,
+                        full_source=text,
+                        bad_fn_match_start=match_start,
+                        bad_fn_brace_open=brace_open,
+                        bad_fn_brace_close=brace_close,
+                        testcasesupport=testcasesupport_files,
                     )
                     cells[(our_cwe, language)].append(record)
                     picked += 1
