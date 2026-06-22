@@ -181,6 +181,8 @@ def _load_prompts(path: Path, n: int) -> list[Prompt]:
                 ],
                 extra_files=dict(ts.get("extra_files", {}) or {}),
                 entry_module=ts.get("entry_module"),
+                prefix_text=ts.get("prefix_text"),
+                suffix_text=ts.get("suffix_text"),
             )
             out.append(
                 Prompt(
