@@ -393,14 +393,32 @@ class EvalHarness:
                 # Re-load completed records so the in-memory report is
                 # consistent (final aggregate covers all n_total prompts,
                 # not just the new ones), and build the skip set.
+                # Deduplicate by prompt_id (keep LAST occurrence: latest
+                # streaming write wins) AND filter to the current eval set
+                # so that records from older eval-set versions don't inflate
+                # the aggregate. Streams from interrupted+resumed runs over
+                # weeks of corpus iteration accumulate both kinds of debris:
+                # duplicate records AND stale prompt_ids from prior corpora.
+                eval_prompt_ids = {p.id for p in prompts}
+                pending: dict[str, PerPromptRecord] = {}
                 with open(stream_path) as fh_in:
                     for line in fh_in:
-                        raw = json.loads(line)
-                        completed_ids.add(raw["prompt_id"])
-                        records.append(PerPromptRecord(**{
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            raw = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        pid = raw["prompt_id"]
+                        if pid not in eval_prompt_ids:
+                            continue
+                        completed_ids.add(pid)
+                        pending[pid] = PerPromptRecord(**{
                             k: raw.get(k, getattr(PerPromptRecord, k, None))
                             for k in PerPromptRecord.__dataclass_fields__
-                        }))
+                        })
+                records.extend(pending.values())
                 print(
                     f"[eval] resuming: {len(completed_ids)} prompts already "
                     f"in {stream_path}",
