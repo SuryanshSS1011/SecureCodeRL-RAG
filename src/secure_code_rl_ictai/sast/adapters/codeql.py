@@ -145,6 +145,8 @@ class CodeQLAdapter(ToolAdapter):
                 capture_output=True,
                 timeout=create_timeout,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
         except subprocess.TimeoutExpired:
             return ToolRunResult(
@@ -186,6 +188,8 @@ class CodeQLAdapter(ToolAdapter):
                 capture_output=True,
                 timeout=analyze_timeout,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
         except subprocess.TimeoutExpired:
             return ToolRunResult(

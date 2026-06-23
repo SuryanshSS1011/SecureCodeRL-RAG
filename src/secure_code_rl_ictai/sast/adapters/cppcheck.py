@@ -83,6 +83,8 @@ class CppcheckAdapter(ToolAdapter):
                 capture_output=True,
                 timeout=timeout_s,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
         except subprocess.TimeoutExpired as exc:
             return ToolRunResult(
