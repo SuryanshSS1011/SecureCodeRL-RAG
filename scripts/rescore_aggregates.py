@@ -192,7 +192,10 @@ def rescore_stream(stream_path: Path, eval_index: dict[str, dict],
         })
         completion = r.get("completion", "")
         old_compiles = bool(r.get("compiles", False))
-        secure = bool(r.get("secure", False))
+        # Streams store target_cwe_present (per-CWE-specific SAST verdict),
+        # not a bare "secure" boolean. A row counts as secure if the target
+        # CWE was NOT detected by SAST. Matches v4 batch-rescore (task #304).
+        secure = (r.get("target_cwe_present") is False)
         tests_passed_old = int(r.get("tests_passed", 0) or 0)
         has_tests = len(spec.test_cases) > 0
         work_items.append((pid, completion, spec_json, old_compiles, secure,
