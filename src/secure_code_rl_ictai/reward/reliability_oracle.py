@@ -172,8 +172,6 @@ class RealOracle(ReliabilityOracle):
         tmp_base = (
             os.environ.get("SLURM_TMPDIR")
             or os.environ.get("ICTAI_ORACLE_TMP")
-            or ("/scratch/sss6371/oracle_tmp"
-                if os.path.isdir("/scratch/sss6371") else None)
             or tempfile.gettempdir()
         )
         tmp_name = f"ictai_oracle_{os.getpid()}_{uuid.uuid4().hex[:8]}"

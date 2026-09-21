@@ -207,8 +207,6 @@ class RewardPipeline:
         tmp_base = (
             os.environ.get("SLURM_TMPDIR")
             or os.environ.get("ICTAI_PIPELINE_TMP")
-            or ("/scratch/sss6371/pipeline_tmp"
-                if os.path.isdir("/scratch/sss6371") else None)
             or tempfile.gettempdir()
         )
         tmp_name = f"ictai_pipeline_{os.getpid()}_{uuid.uuid4().hex[:8]}"

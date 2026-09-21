@@ -1,9 +1,10 @@
 """Resolve SAST tool binaries to absolute paths.
 
-ROAR compute nodes do not have .venv/bin or ~/.local/share/codeql on PATH
-(roar_venv_path memory), so a bare `subprocess.run(["codeql", ...])` fails
-with FileNotFoundError on every step. The resolver checks PATH first, then
-falls back to the conda env, then to fixed install locations.
+Cluster compute nodes may not have .venv/bin or ~/.local/share/codeql on
+PATH, so a bare `subprocess.run(["codeql", ...])` fails with
+FileNotFoundError on every step. The resolver checks $CODEQL_BINARY /
+$CPPCHECK_BINARY and known install paths first, then PATH, then the
+interpreter's venv bin.
 """
 
 from __future__ import annotations
@@ -15,12 +16,6 @@ from pathlib import Path
 
 _CODEQL_FIXED_PATHS: tuple[str, ...] = (
     str(Path.home() / ".local" / "share" / "codeql" / "codeql"),
-    "/storage/home/sss6371/.local/share/codeql/codeql",
-    "/storage/home/sss6371/work/oss/codeql-cli/codeql/codeql",
-)
-
-_CPPCHECK_FIXED_PATHS: tuple[str, ...] = (
-    "/storage/work/sss6371/.conda/envs/sast/bin/cppcheck",
 )
 
 
@@ -29,8 +24,8 @@ def resolve(name: str) -> str:
     last resort so subprocess raises a clear FileNotFoundError.
 
     Tool-specific overrides:
-        codeql:  honor $CODEQL_BINARY, then known install paths
-        cppcheck: known conda env path
+        codeql:   honor $CODEQL_BINARY, then ~/.local/share/codeql
+        cppcheck: honor $CPPCHECK_BINARY
     """
     if name == "codeql":
         env_override = os.environ.get("CODEQL_BINARY")
@@ -40,9 +35,9 @@ def resolve(name: str) -> str:
             if Path(cand).exists():
                 return cand
     if name == "cppcheck":
-        for cand in _CPPCHECK_FIXED_PATHS:
-            if Path(cand).exists():
-                return cand
+        env_override = os.environ.get("CPPCHECK_BINARY")
+        if env_override and Path(env_override).exists():
+            return env_override
 
     via_path = shutil.which(name)
     if via_path:
