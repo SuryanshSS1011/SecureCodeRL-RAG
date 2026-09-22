@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the ICTAI 2026 paper below."
+title: "CARGO: Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models"
+type: software
+version: "1.0.0"
+authors:
+  - family-names: Sijwali
+    given-names: Suryansh Singh
+    orcid: "https://orcid.org/0009-0005-7739-1657"
+    affiliation: "Pennsylvania State University"
+  - family-names: Singla
+    given-names: Medhansh Kumar
+    affiliation: "Pennsylvania State University"
+  - family-names: Saha
+    given-names: Suman
+    orcid: "https://orcid.org/0009-0005-9440-6785"
+    affiliation: "Pennsylvania State University"
+preferred-citation:
+  type: conference-paper
+  title: "Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models (CARGO)"
+  authors:
+    - family-names: Sijwali
+      given-names: Suryansh Singh
+      orcid: "https://orcid.org/0009-0005-7739-1657"
+    - family-names: Singla
+      given-names: Medhansh Kumar
+    - family-names: Saha
+      given-names: Suman
+      orcid: "https://orcid.org/0009-0005-9440-6785"
+  conference:
+    name: "IEEE International Conference on Tools with Artificial Intelligence"
+    acronym: "ICTAI 2026"
+  year: 2026
+  publisher:
+    name: "IEEE"
+references:
+  - type: conference-paper
+    title: "Scheduled Partial-Credit RL for Reliable Code Generation with Small Language Models (WIP)"
+    authors:
+      - family-names: Sijwali
+        given-names: Suryansh Singh
+      - family-names: Saha
+        given-names: Suman
+    conference:
+      name: "27th ACM SIGPLAN/SIGBED International Conference on Languages, Compilers, and Tools for Embedded Systems"
+      acronym: "LCTES '26"
+    year: 2026
+    doi: "10.1145/3814943.3816167"
+keywords:
+  - "Secure Code Generation"
+  - "Reinforcement Learning"
+  - "GRPO"
+  - "Reward Shaping"
+  - "Retrieval-Augmented Reward"
+  - "Static Analysis"
+  - "Small Language Models"
+  - "CWE"
+license: MIT
+repository-code: "https://github.com/SuryanshSS1011/SecureCodeRL-RAG"
