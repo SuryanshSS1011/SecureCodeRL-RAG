@@ -19,7 +19,7 @@ On a 1,582-prompt benchmark covering 19 CWEs in Python, C, and C++, CARGO improv
 ## Repository layout
 
 ```
-src/secure_code_rl_ictai/
+src/cargo/
 ├── data_prep/   source adapters (CVEfixes, DiverseVul, Juliet 1.3, CyberSecEval, SecCodePLT,
 │                CASTLE, SecurityEval, CWEval), prompt normalization, disjointness audit
 ├── sast/        CodeQL / Semgrep / Bandit / Cppcheck adapters, SARIF normalizer, CWE hierarchy, CVSS severity

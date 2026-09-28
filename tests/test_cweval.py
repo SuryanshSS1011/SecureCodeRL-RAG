@@ -26,8 +26,8 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.data_prep import Language
-from secure_code_rl_ictai.data_prep.cweval import CwevalAdapter, CwevalConfig
+from cargo.data_prep import Language
+from cargo.data_prep.cweval import CwevalAdapter, CwevalConfig
 
 
 def _write_cweval_pair(

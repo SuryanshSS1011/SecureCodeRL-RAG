@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.eval.baselines import (
+from cargo.eval.baselines import (
     BASELINE_REGISTRY,
     BaselineCategory,
     BaselineSpec,
@@ -45,7 +45,7 @@ def test_baseline_factory_for_real_model_construct_then_generate():
     Its `.generate()` raises NotImplementedError when torch+transformers are
     absent; when they're present, generation actually runs (covered by the
     real_hf tests in test_hf_baseline.py)."""
-    from secure_code_rl_ictai.eval.model import SamplingConfig
+    from cargo.eval.model import SamplingConfig
 
     spec = get_baseline_spec("qwen2.5-coder-1.5b")
     model = spec.factory()

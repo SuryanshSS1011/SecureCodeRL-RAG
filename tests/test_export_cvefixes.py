@@ -353,7 +353,7 @@ def test_export_refuses_overwrite_without_force(tmp_path: Path):
 def test_export_output_is_consumable_by_adapter(tmp_path: Path):
     """Round-trip: export to JSONL, then load through CvefixesAdapter.
     Verifies the exporter's schema matches the adapter's expectations."""
-    from secure_code_rl_ictai.data_prep import CvefixesAdapter, CvefixesConfig
+    from cargo.data_prep import CvefixesAdapter, CvefixesConfig
 
     db = tmp_path / "cvefixes.db"
     _build_fixture_db(db)

@@ -23,19 +23,19 @@ DATA = Path("/storage/home/sss6371/work/secure-code-rl-ictai-data/raw")
 
 sys.path.insert(0, str(REPO / "src"))
 
-from secure_code_rl_ictai.data_prep.disjointness import (
+from cargo.data_prep.disjointness import (
     _hash, ast_normalize_python, string_normalize,
 )
-from secure_code_rl_ictai.data_prep.cyberseceval import (
+from cargo.data_prep.cyberseceval import (
     CyberSecEvalAdapter, CyberSecEvalConfig,
 )
-from secure_code_rl_ictai.data_prep.castle import (
+from cargo.data_prep.castle import (
     CastleAdapter, CastleConfig,
 )
-from secure_code_rl_ictai.data_prep.securityeval import (
+from cargo.data_prep.securityeval import (
     SecurityEvalAdapter, SecurityEvalConfig,
 )
-from secure_code_rl_ictai.data_prep.diversevul import (
+from cargo.data_prep.diversevul import (
     DiverseVulAdapter, DiverseVulConfig,
 )
 

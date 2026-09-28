@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.eval.model import HfBaselineModel, SamplingConfig
+from cargo.eval.model import HfBaselineModel, SamplingConfig
 
 
 # ----------------------------------------------------------------------

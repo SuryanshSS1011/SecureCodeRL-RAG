@@ -15,8 +15,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.rl import get_algorithm
-from secure_code_rl_ictai.rl.raft import (
+from cargo.rl import get_algorithm
+from cargo.rl.raft import (
     RaftConfig,
     raft_step,
     select_top_k_per_group,

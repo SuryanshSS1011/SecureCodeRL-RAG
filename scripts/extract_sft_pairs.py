@@ -73,8 +73,8 @@ def _iter_cvefixes_pairs(
     iteration + filtering and use train_ids to confirm the prompt was
     in the RL training set.
     """
-    from secure_code_rl_ictai.data_prep import normalize_cwe, normalize_language
-    from secure_code_rl_ictai.data_prep.cvefixes import make_prompt_id
+    from cargo.data_prep import normalize_cwe, normalize_language
+    from cargo.data_prep.cvefixes import make_prompt_id
 
     for jsonl in sorted(cvefixes_dir.glob("*.jsonl")):
         with jsonl.open() as f:

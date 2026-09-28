@@ -7,7 +7,7 @@ import math
 
 import pytest
 
-from secure_code_rl_ictai.rag import (
+from cargo.rag import (
     ExemplarPair,
     HybridRetriever,
     Language,

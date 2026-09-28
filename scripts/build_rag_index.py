@@ -31,7 +31,7 @@ from typing import Iterator
 
 import numpy as np
 
-from secure_code_rl_ictai.rag import (
+from cargo.rag import (
     Bm25Backend,
     ExemplarPair,
     HfEmbedder,

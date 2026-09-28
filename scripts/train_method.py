@@ -37,9 +37,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from secure_code_rl_ictai.data_prep import normalize_cwe, normalize_language
-from secure_code_rl_ictai.data_prep.schema import Prompt
-from secure_code_rl_ictai.reward import (
+from cargo.data_prep import normalize_cwe, normalize_language
+from cargo.data_prep.schema import Prompt
+from cargo.reward import (
     MockOracle,
     RealOracle,
     ReliabilitySignals,
@@ -49,23 +49,23 @@ from secure_code_rl_ictai.reward import (
     TestCase,
     TestSpec,
 )
-from secure_code_rl_ictai.rl.grpo import GrpoConfig
-from secure_code_rl_ictai.rl.registry import get_algorithm
-from secure_code_rl_ictai.rl.reweight import (
+from cargo.rl.grpo import GrpoConfig
+from cargo.rl.registry import get_algorithm
+from cargo.rl.reweight import (
     DEFAULT_ALPHA_CWE,
     ReweightConfig,
     Reweighter,
 )
-from secure_code_rl_ictai.rl.schedule import DEFAULT_PHASES, PhaseSchedule, PhaseSpec
-from secure_code_rl_ictai.rl.torch_policy import TorchPolicy, TorchPolicyConfig
-from secure_code_rl_ictai.rl.trainer import Trainer, TrainerConfig
-from secure_code_rl_ictai.sast.adapters.bandit import BanditAdapter
-from secure_code_rl_ictai.sast.adapters.codeql import CodeQLAdapter
-from secure_code_rl_ictai.sast.adapters.cppcheck import CppcheckAdapter
-from secure_code_rl_ictai.sast.adapters.semgrep import SemgrepAdapter
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import MockAdapter, SastRunner
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.rl.schedule import DEFAULT_PHASES, PhaseSchedule, PhaseSpec
+from cargo.rl.torch_policy import TorchPolicy, TorchPolicyConfig
+from cargo.rl.trainer import Trainer, TrainerConfig
+from cargo.sast.adapters.bandit import BanditAdapter
+from cargo.sast.adapters.codeql import CodeQLAdapter
+from cargo.sast.adapters.cppcheck import CppcheckAdapter
+from cargo.sast.adapters.semgrep import SemgrepAdapter
+from cargo.sast.models import ToolName
+from cargo.sast.runner import MockAdapter, SastRunner
+from cargo.sast.severity import SeveritySource
 
 
 def _resolve(name: str) -> str:
@@ -124,7 +124,7 @@ def _build_reward_pipeline(
     # 17 days/run. With deep_period=50 it's amortized to ~5min per step
     # average, ~12h per 1000-step run. Full codeql signal returned at
     # eval time (headline_eval.py uses SastTier.ALL).
-    from secure_code_rl_ictai.sast.runner import SastTier
+    from cargo.sast.runner import SastTier
     runner = SastRunner(adapters, tier=SastTier.CHEAP_PLUS_PERIODIC, deep_period=50)
     sev_src = SeveritySource(Path("data/nvdlib_cwe_medians.json"))
     calc = RewardCalculator(
@@ -491,7 +491,7 @@ def main() -> int:
             raise ValueError(
                 "--reward-rag-on / --prepend-rag-on requires --rag-index-dir"
             )
-        from secure_code_rl_ictai.rag import load_embedder, load_retriever
+        from cargo.rag import load_embedder, load_retriever
         print(
             f"[train] loading RAG index from {args.rag_index_dir} ...",
             file=sys.stderr, flush=True,

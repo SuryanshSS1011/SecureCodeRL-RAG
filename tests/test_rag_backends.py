@@ -19,7 +19,7 @@ import types
 
 import pytest
 
-from secure_code_rl_ictai.rag import (
+from cargo.rag import (
     Bm25Backend,
     ExemplarPair,
     FaissBackend,

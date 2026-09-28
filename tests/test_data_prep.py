@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.data_prep import (
+from cargo.data_prep import (
     CvefixesAdapter,
     CvefixesConfig,
     Language,
@@ -22,7 +22,7 @@ from secure_code_rl_ictai.data_prep import (
     normalize_cwe,
     normalize_language,
 )
-from secure_code_rl_ictai.reward.reliability_oracle import TestSpec
+from cargo.reward.reliability_oracle import TestSpec
 
 
 # ----------------------------------------------------------------------

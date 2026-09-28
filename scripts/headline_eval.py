@@ -48,17 +48,17 @@ def _build_real_pipeline(compile_mode: str = "syntax_only"):
     "link_and_run" (the training-time reward path, which additionally
     links and executes the binary).
     """
-    from secure_code_rl_ictai.reward import (
+    from cargo.reward import (
         RewardCalculator, RewardConfig, RewardPipeline,
     )
-    from secure_code_rl_ictai.reward.reliability_oracle import RealOracle
-    from secure_code_rl_ictai.sast import ToolName
-    from secure_code_rl_ictai.sast.adapters import (
+    from cargo.reward.reliability_oracle import RealOracle
+    from cargo.sast import ToolName
+    from cargo.sast.adapters import (
         BanditAdapter, CodeQLAdapter, CppcheckAdapter, SemgrepAdapter,
     )
-    from secure_code_rl_ictai.sast.normalizer import SarifNormalizer
-    from secure_code_rl_ictai.sast.runner import SastRunner
-    from secure_code_rl_ictai.sast.severity import SeveritySource
+    from cargo.sast.normalizer import SarifNormalizer
+    from cargo.sast.runner import SastRunner
+    from cargo.sast.severity import SeveritySource
 
     def _resolve(name: str) -> str:
         # Resolve absolute path of CLI tools inside the venv.
@@ -186,7 +186,7 @@ class _LoraBaselineModel:
               file=sys.stderr, flush=True)
 
     def generate(self, prompt: str, *, sampling):
-        from secure_code_rl_ictai.eval.model import CompletionResult
+        from cargo.eval.model import CompletionResult
         import torch
         self._ensure_loaded()
         # Format with chat template like training did, so apples-to-apples.
@@ -283,11 +283,11 @@ def main() -> int:
             f"adapter_config.json (LoRA) or config.json (full-FT)"
         )
 
-    from secure_code_rl_ictai.eval.harness import EvalHarness
-    from secure_code_rl_ictai.eval.model import SamplingConfig
-    from secure_code_rl_ictai.data_prep.schema import Prompt
-    from secure_code_rl_ictai.data_prep import normalize_language, normalize_cwe
-    from secure_code_rl_ictai.reward.reliability_oracle import TestCase, TestSpec
+    from cargo.eval.harness import EvalHarness
+    from cargo.eval.model import SamplingConfig
+    from cargo.data_prep.schema import Prompt
+    from cargo.data_prep import normalize_language, normalize_cwe
+    from cargo.reward.reliability_oracle import TestCase, TestSpec
 
     # Load prompts.
     prompts: list[Prompt] = []
@@ -342,8 +342,8 @@ def main() -> int:
     if args.inference_rag_on:
         if args.rag_index_dir is None:
             raise ValueError("--inference-rag-on requires --rag-index-dir")
-        from secure_code_rl_ictai.rag import load_embedder, load_retriever
-        from secure_code_rl_ictai.rag.retriever import RetrievalQuery
+        from cargo.rag import load_embedder, load_retriever
+        from cargo.rag.retriever import RetrievalQuery
         print(f"[headline-eval] inference-RAG: loading index from {args.rag_index_dir}",
               file=sys.stderr, flush=True)
         retriever = load_retriever(args.rag_index_dir)

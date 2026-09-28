@@ -17,11 +17,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.rl import (
+from cargo.rl import (
     GrpoConfig,
     get_algorithm,
 )
-from secure_code_rl_ictai.rl.ppo import ppo_step
+from cargo.rl.ppo import ppo_step
 
 
 # ----------------------------------------------------------------------

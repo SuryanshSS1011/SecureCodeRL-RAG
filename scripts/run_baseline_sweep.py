@@ -35,18 +35,18 @@ import sys
 import traceback
 from pathlib import Path
 
-from secure_code_rl_ictai.data_prep.schema import Prompt
-from secure_code_rl_ictai.data_prep import (
+from cargo.data_prep.schema import Prompt
+from cargo.data_prep import (
     normalize_cwe,
     normalize_language,
 )
-from secure_code_rl_ictai.eval import (
+from cargo.eval import (
     EvalHarness,
     MockModel,
     SamplingConfig,
     get_baseline_spec,
 )
-from secure_code_rl_ictai.reward import (
+from cargo.reward import (
     MockOracle,
     RealOracle,
     ReliabilitySignals,
@@ -56,13 +56,13 @@ from secure_code_rl_ictai.reward import (
     TestCase,
     TestSpec,
 )
-from secure_code_rl_ictai.sast.adapters.bandit import BanditAdapter
-from secure_code_rl_ictai.sast.adapters.codeql import CodeQLAdapter
-from secure_code_rl_ictai.sast.adapters.cppcheck import CppcheckAdapter
-from secure_code_rl_ictai.sast.adapters.semgrep import SemgrepAdapter
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import MockAdapter, SastRunner
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.adapters.bandit import BanditAdapter
+from cargo.sast.adapters.codeql import CodeQLAdapter
+from cargo.sast.adapters.cppcheck import CppcheckAdapter
+from cargo.sast.adapters.semgrep import SemgrepAdapter
+from cargo.sast.models import ToolName
+from cargo.sast.runner import MockAdapter, SastRunner
+from cargo.sast.severity import SeveritySource
 
 
 def _load_prompts(path: Path) -> list[Prompt]:

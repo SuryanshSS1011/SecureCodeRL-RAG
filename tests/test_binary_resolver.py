@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.sast.binary_resolver import resolve
+from cargo.sast.binary_resolver import resolve
 
 
 @pytest.mark.parametrize("tool,env", [("codeql", "CODEQL_BINARY"), ("cppcheck", "CPPCHECK_BINARY")])

@@ -18,9 +18,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.data_prep.schema import Prompt
-from secure_code_rl_ictai.eval.model import SamplingConfig
-from secure_code_rl_ictai.reward import (
+from cargo.data_prep.schema import Prompt
+from cargo.eval.model import SamplingConfig
+from cargo.reward import (
     Language,
     MockOracle,
     ReliabilitySignals,
@@ -29,15 +29,15 @@ from secure_code_rl_ictai.reward import (
     RewardPipeline,
     TestSpec,
 )
-from secure_code_rl_ictai.rl import GrpoConfig, get_algorithm
-from secure_code_rl_ictai.rl.schedule import DEFAULT_PHASES, PhaseSchedule, PhaseSpec
-from secure_code_rl_ictai.rl.trainer import (
+from cargo.rl import GrpoConfig, get_algorithm
+from cargo.rl.schedule import DEFAULT_PHASES, PhaseSchedule, PhaseSpec
+from cargo.rl.trainer import (
     Trainer,
     TrainerConfig,
 )
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import MockAdapter, SastRunner
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.models import ToolName
+from cargo.sast.runner import MockAdapter, SastRunner
+from cargo.sast.severity import SeveritySource
 
 
 # ----------------------------------------------------------------------
@@ -621,7 +621,7 @@ def test_eval_log_append_on_resume(tmp_path: Path):
 
 def test_trainer_passes_cwe_weights_to_policy_step():
     """Algorithm 1 step 11: w(x) scales each prompt's rollouts' loss."""
-    from secure_code_rl_ictai.rl.reweight import ReweightConfig, Reweighter
+    from cargo.rl.reweight import ReweightConfig, Reweighter
 
     seen: list[np.ndarray] = []
 

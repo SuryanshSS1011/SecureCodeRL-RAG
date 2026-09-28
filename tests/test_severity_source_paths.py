@@ -22,8 +22,8 @@ import json
 from pathlib import Path
 
 
-from secure_code_rl_ictai.sast.models import Finding, Location, Tier, ToolName
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.models import Finding, Location, Tier, ToolName
+from cargo.sast.severity import SeveritySource
 
 
 def _finding(
@@ -175,7 +175,7 @@ def test_diagnostics_split_across_paths(tmp_path: Path):
 def test_calculator_per_finding_includes_severity_source():
     """Reward calculator's per_finding records should carry the source label
     so the trainer log can stratify per-finding-vs-fallback."""
-    from secure_code_rl_ictai.reward.calculator import (
+    from cargo.reward.calculator import (
         ReliabilitySignals,
         RewardCalculator,
         RewardConfig,

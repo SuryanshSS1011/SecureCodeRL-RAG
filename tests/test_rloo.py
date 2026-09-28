@@ -21,8 +21,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.rl import GrpoConfig, get_algorithm
-from secure_code_rl_ictai.rl.rloo import compute_loo_advantages, rloo_step
+from cargo.rl import GrpoConfig, get_algorithm
+from cargo.rl.rloo import compute_loo_advantages, rloo_step
 
 
 # ----------------------------------------------------------------------

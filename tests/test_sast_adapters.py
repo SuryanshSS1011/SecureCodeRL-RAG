@@ -17,11 +17,11 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.sast.adapters.bandit import BanditAdapter
-from secure_code_rl_ictai.sast.adapters.codeql import CodeQLAdapter
-from secure_code_rl_ictai.sast.adapters.semgrep import SemgrepAdapter
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import Language
+from cargo.sast.adapters.bandit import BanditAdapter
+from cargo.sast.adapters.codeql import CodeQLAdapter
+from cargo.sast.adapters.semgrep import SemgrepAdapter
+from cargo.sast.models import ToolName
+from cargo.sast.runner import Language
 
 
 # ----------------------------------------------------------------------

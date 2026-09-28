@@ -11,12 +11,12 @@ import json
 from pathlib import Path
 
 
-from secure_code_rl_ictai.data_prep import (
+from cargo.data_prep import (
     Prompt,
 )
-from secure_code_rl_ictai.eval.harness import EvalHarness
-from secure_code_rl_ictai.eval.model import MockModel, SamplingConfig
-from secure_code_rl_ictai.reward import (
+from cargo.eval.harness import EvalHarness
+from cargo.eval.model import MockModel, SamplingConfig
+from cargo.reward import (
     Language,
     MockOracle,
     ReliabilitySignals,
@@ -26,9 +26,9 @@ from secure_code_rl_ictai.reward import (
     TestCase,
     TestSpec,
 )
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import MockAdapter, SastRunner
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.models import ToolName
+from cargo.sast.runner import MockAdapter, SastRunner
+from cargo.sast.severity import SeveritySource
 
 
 # A completion long enough to clear the reward pipeline's stub guard
@@ -560,14 +560,14 @@ def test_bootstrap_cis_per_cwe_present_when_high_support():
 
 
 def test_extract_code_truncates_at_chat_continuation_marker():
-    from secure_code_rl_ictai.eval.harness import _extract_code
+    from cargo.eval.harness import _extract_code
 
     text = "def f():\n    return 1\n<|im_end|>\n<|im_start|>user\nmore prompt"
     assert _extract_code(text, "python") == "def f():\n    return 1\n"
 
 
 def test_extract_code_strips_duplicate_main_for_c():
-    from secure_code_rl_ictai.eval.harness import _extract_code
+    from cargo.eval.harness import _extract_code
 
     first = "#include <stdio.h>\nint main(void) {\n    return 0;\n}"
     text = first + "\n\n// hardened version\nint main(void) {\n    return 1;\n}\n"
@@ -577,21 +577,21 @@ def test_extract_code_strips_duplicate_main_for_c():
 
 
 def test_extract_code_drops_unterminated_block_comment():
-    from secure_code_rl_ictai.eval.harness import _extract_code
+    from cargo.eval.harness import _extract_code
 
     text = "int main(void) {\n    return 0;\n}\n/* the model ran out of tokens mid-comm"
     assert _extract_code(text, "c") == "int main(void) {\n    return 0;\n}"
 
 
 def test_extract_code_truncates_prose_after_top_level_unit():
-    from secure_code_rl_ictai.eval.harness import _extract_code
+    from cargo.eval.harness import _extract_code
 
     text = "int main(void) {\n    return 0;\n}\nThis program prints nothing and exits."
     assert _extract_code(text, "c") == "int main(void) {\n    return 0;\n}"
 
 
 def test_extract_code_leaves_python_untouched_beyond_fences():
-    from secure_code_rl_ictai.eval.harness import _extract_code
+    from cargo.eval.harness import _extract_code
 
     text = "```python\ndef f():\n    return 1\n```\nThat is the function."
     assert _extract_code(text, "python") == "def f():\n    return 1"
@@ -607,8 +607,8 @@ def test_func_sec_has_tests_denominator_includes_compile_failures():
     that fails to compile contributes 0 to the numerator instead of
     shrinking the denominator (the floating-denominator behaviour of
     `func_sec_at_1__compiles_and_has_tests`)."""
-    from secure_code_rl_ictai.eval.harness import PerPromptRecord
-    from secure_code_rl_ictai.eval.metrics import compute_all
+    from cargo.eval.harness import PerPromptRecord
+    from cargo.eval.metrics import compute_all
 
     passing = PerPromptRecord(
         prompt_id="a", source="t", target_cwe="CWE-89", language="python",

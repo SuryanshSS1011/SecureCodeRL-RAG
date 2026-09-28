@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.rl import (
+from cargo.rl import (
     GrpoConfig,
     compute_group_advantages,
     get_algorithm,

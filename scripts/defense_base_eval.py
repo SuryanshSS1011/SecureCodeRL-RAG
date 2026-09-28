@@ -62,11 +62,11 @@ def main() -> int:
 
     args.output.mkdir(parents=True, exist_ok=True)
 
-    from secure_code_rl_ictai.eval.harness import EvalHarness
-    from secure_code_rl_ictai.eval.model import HfBaselineModel, SamplingConfig
-    from secure_code_rl_ictai.data_prep.schema import Prompt
-    from secure_code_rl_ictai.data_prep import normalize_language, normalize_cwe
-    from secure_code_rl_ictai.reward.reliability_oracle import TestCase, TestSpec
+    from cargo.eval.harness import EvalHarness
+    from cargo.eval.model import HfBaselineModel, SamplingConfig
+    from cargo.data_prep.schema import Prompt
+    from cargo.data_prep import normalize_language, normalize_cwe
+    from cargo.reward.reliability_oracle import TestCase, TestSpec
     # Reuse the SAST+oracle+severity-source pipeline builder from
     # headline_eval so eval scoring is byte-identical to the trained-cell
     # evals. Reimplementing here was the source of an earlier launch
@@ -138,8 +138,8 @@ def main() -> int:
     # transform that prepends the top RAG exemplar before generation.
     prompt_transform = None
     if args.mode == "rag":
-        from secure_code_rl_ictai.rag import load_embedder, load_retriever
-        from secure_code_rl_ictai.rag.retriever import RetrievalQuery
+        from cargo.rag import load_embedder, load_retriever
+        from cargo.rag.retriever import RetrievalQuery
         print(f"[defense] loading RAG index from {args.rag_index_dir}",
               file=sys.stderr, flush=True)
         retriever = load_retriever(args.rag_index_dir)

@@ -12,7 +12,7 @@ import shutil
 
 import pytest
 
-from secure_code_rl_ictai.reward import (
+from cargo.reward import (
     Language,
     MockOracle,
     RealOracle,
@@ -224,7 +224,7 @@ def _capture_compile_calls(monkeypatch):
     """Stub subprocess.run so no compiler or binary actually executes."""
     import subprocess
 
-    from secure_code_rl_ictai.reward import reliability_oracle as ro
+    from cargo.reward import reliability_oracle as ro
 
     calls: list[list[str]] = []
 

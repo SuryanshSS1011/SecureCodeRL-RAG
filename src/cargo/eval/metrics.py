@@ -123,7 +123,7 @@ def _is_stub_completion(rec: PerPromptRecord) -> bool:
     """True iff the rec's completion is degenerate per the stub rules.
 
     Conservative: false negatives are fine, false positives strip real code.
-    Mirrors secure_code_rl_ictai.reward.pipeline._looks_like_stub.
+    Mirrors cargo.reward.pipeline._looks_like_stub.
     """
     code = _extract_code_from_fence(rec.completion or "")
     stripped = "\n".join(
@@ -192,7 +192,7 @@ def _load_severity_bins() -> dict[str, str]:
     import json
     from pathlib import Path
     # Walk up from this file to find data/nvdlib_cwe_medians.json. The
-    # eval module is at src/secure_code_rl_ictai/eval/metrics.py; the data
+    # eval module is at src/cargo/eval/metrics.py; the data
     # file is at data/nvdlib_cwe_medians.json at the repo root.
     here = Path(__file__).resolve()
     for parent in here.parents:

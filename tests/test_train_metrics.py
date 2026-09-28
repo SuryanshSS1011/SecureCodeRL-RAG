@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.reward import (
+from cargo.reward import (
     PipelineDiagnostics,
     PipelineOutput,
     ReliabilitySignals,
     RewardBreakdown,
 )
-from secure_code_rl_ictai.rl.metrics import (
+from cargo.rl.metrics import (
     StepMetricsAggregator,
     TrainStepRecord,
 )

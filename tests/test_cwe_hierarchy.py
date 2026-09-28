@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.sast.cwe_hierarchy import (
+from cargo.sast.cwe_hierarchy import (
     CweHierarchy,
     is_related,
     load_default_hierarchy,
 )
-from secure_code_rl_ictai.sast.models import Finding, Location, Tier, ToolName
-from secure_code_rl_ictai.sast.normalizer import SarifNormalizer
+from cargo.sast.models import Finding, Location, Tier, ToolName
+from cargo.sast.normalizer import SarifNormalizer
 
 
 # ----------------------------------------------------------------------

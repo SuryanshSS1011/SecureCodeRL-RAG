@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import (
+from cargo.sast.models import ToolName
+from cargo.sast.runner import (
     Language,
     MockAdapter,
     SastRunner,

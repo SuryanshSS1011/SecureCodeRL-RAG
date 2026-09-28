@@ -162,7 +162,7 @@ def test_converter_rejects_missing_parquet(tmp_path: Path):
 
 def test_converter_output_consumable_by_adapter(tmp_path: Path):
     """Round-trip: convert parquet -> JSONL, then load through SecCodePltAdapter."""
-    from secure_code_rl_ictai.data_prep import SecCodePltAdapter, SecCodePltConfig
+    from cargo.data_prep import SecCodePltAdapter, SecCodePltConfig
 
     parquet_path = tmp_path / "in.parquet"
     _write_synthetic_parquet(parquet_path)

@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.eval.harness import PerPromptRecord
-from secure_code_rl_ictai.eval.metrics import (
+from cargo.eval.harness import PerPromptRecord
+from cargo.eval.metrics import (
     METRICS,
     MetricSpec,
     compute_all,
@@ -256,7 +256,7 @@ def test_severity_binned_metrics_handle_unknown_cwe():
 
 def test_wilson_interval_matches_paper_base_policy_func_sec():
     """Section VI-A: base-policy Func-Sec@1 21.8% (34/156) -> [16.0, 28.9]."""
-    from secure_code_rl_ictai.eval.metrics import wilson_interval
+    from cargo.eval.metrics import wilson_interval
 
     lo, hi = wilson_interval(34, 156)
     assert (round(100 * lo, 1), round(100 * hi, 1)) == (16.0, 28.9)

@@ -8,14 +8,14 @@ normalizer wraps them with an instruction + code-fence directive.
 
 from __future__ import annotations
 
-from secure_code_rl_ictai.data_prep.prompt_template import (
+from cargo.data_prep.prompt_template import (
     NORMALIZER_VERSION,
     PromptNormalizer,
     PromptNormalizerConfig,
     is_well_formed_prompt,
     normalize_prompt,
 )
-from secure_code_rl_ictai.data_prep.schema import Language, Prompt, TestSpec
+from cargo.data_prep.schema import Language, Prompt, TestSpec
 
 
 def _mk_prompt(prompt_text: str, signature: str = "", language: Language = Language.PYTHON,

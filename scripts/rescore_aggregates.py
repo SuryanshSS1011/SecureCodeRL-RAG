@@ -48,11 +48,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# Repo's local secure_code_rl_ictai import
+# Repo's local cargo import
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from secure_code_rl_ictai.eval.harness import _extract_code  # noqa: E402
-from secure_code_rl_ictai.reward.reliability_oracle import (  # noqa: E402
+from cargo.eval.harness import _extract_code  # noqa: E402
+from cargo.reward.reliability_oracle import (  # noqa: E402
     Language,
     RealOracle,
     TestCase,

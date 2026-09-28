@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.rl.schedule import (
+from cargo.rl.schedule import (
     DEFAULT_PHASES,
     PhaseSchedule,
     PhaseSpec,

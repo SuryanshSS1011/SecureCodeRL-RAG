@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.data_prep import Language
-from secure_code_rl_ictai.data_prep.juliet import JulietAdapter, JulietConfig
+from cargo.data_prep import Language
+from cargo.data_prep.juliet import JulietAdapter, JulietConfig
 
 
 def _juliet_c_file(bad_body: str, good_body: str, base_name: str = "CWE121__test") -> str:

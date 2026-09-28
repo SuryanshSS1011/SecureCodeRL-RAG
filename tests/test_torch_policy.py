@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.eval.model import SamplingConfig
+from cargo.eval.model import SamplingConfig
 
 
 # ----------------------------------------------------------------------
@@ -25,7 +25,7 @@ from secure_code_rl_ictai.eval.model import SamplingConfig
 
 
 def test_torch_policy_constructor_does_not_load():
-    from secure_code_rl_ictai.rl.torch_policy import TorchPolicy
+    from cargo.rl.torch_policy import TorchPolicy
 
     p = TorchPolicy(
         model_id="Qwen/Qwen2.5-Coder-1.5B-Instruct",
@@ -49,7 +49,7 @@ def test_torch_policy_methods_raise_without_torch():
     except ImportError:
         pass
 
-    from secure_code_rl_ictai.rl.torch_policy import TorchPolicy
+    from cargo.rl.torch_policy import TorchPolicy
 
     p = TorchPolicy(model_id="x", device="cpu")
     with pytest.raises(NotImplementedError):
@@ -64,7 +64,7 @@ def test_torch_policy_methods_raise_without_torch():
 @pytest.mark.real_hf
 def test_torch_policy_generate_returns_n_completions():
     """One prompt × group_size=2 -> two completions."""
-    from secure_code_rl_ictai.rl.torch_policy import TorchPolicy
+    from cargo.rl.torch_policy import TorchPolicy
 
     p = TorchPolicy(
         model_id="Qwen/Qwen2.5-Coder-1.5B-Instruct",
@@ -88,7 +88,7 @@ def test_torch_policy_generate_returns_n_completions():
 @pytest.mark.real_hf
 def test_torch_policy_log_probs_returns_right_shape():
     import numpy as np
-    from secure_code_rl_ictai.rl.torch_policy import TorchPolicy
+    from cargo.rl.torch_policy import TorchPolicy
 
     p = TorchPolicy(
         model_id="Qwen/Qwen2.5-Coder-1.5B-Instruct",
@@ -111,7 +111,7 @@ def test_torch_policy_ref_log_probs_match_log_probs_at_init():
     """At initialization, LoRA-B is zero-initialized so the adapted model
     produces identical outputs to the reference. log_probs == ref_log_probs."""
     import numpy as np
-    from secure_code_rl_ictai.rl.torch_policy import TorchPolicy
+    from cargo.rl.torch_policy import TorchPolicy
 
     p = TorchPolicy(
         model_id="Qwen/Qwen2.5-Coder-1.5B-Instruct",

@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.reward.calculator import (
+from cargo.reward.calculator import (
     ReliabilitySignals,
     RewardCalculator,
     RewardConfig,
 )
-from secure_code_rl_ictai.sast.models import Finding, Location, Tier, ToolName
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.models import Finding, Location, Tier, ToolName
+from cargo.sast.severity import SeveritySource
 
 
 def _finding(

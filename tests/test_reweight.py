@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from secure_code_rl_ictai.rl.reweight import ReweightConfig, Reweighter
+from cargo.rl.reweight import ReweightConfig, Reweighter
 
 
 def test_raw_weights_are_dampened_inverse_frequency():

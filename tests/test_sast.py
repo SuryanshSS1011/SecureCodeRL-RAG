@@ -8,16 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from secure_code_rl_ictai.sast.models import (
+from cargo.sast.models import (
     Finding,
     Location,
     Tier,
     ToolName,
     tier_from_severity,
 )
-from secure_code_rl_ictai.sast.normalizer import SarifNormalizer
-from secure_code_rl_ictai.sast.rule_map import rule_to_cwe
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.normalizer import SarifNormalizer
+from cargo.sast.rule_map import rule_to_cwe
+from cargo.sast.severity import SeveritySource
 
 
 # ----------------------------------------------------------------------

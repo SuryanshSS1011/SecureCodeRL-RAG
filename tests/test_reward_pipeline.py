@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import pytest
 
-from secure_code_rl_ictai.rag import (
+from cargo.rag import (
     ExemplarPair,
     HybridRetriever,
     Language as RagLanguage,
     StubBackend,
 )
-from secure_code_rl_ictai.reward import (
+from cargo.reward import (
     Language,
     MockOracle,
     PromptContext,
@@ -28,9 +28,9 @@ from secure_code_rl_ictai.reward import (
     RewardPipeline,
     TestSpec,
 )
-from secure_code_rl_ictai.sast.models import ToolName
-from secure_code_rl_ictai.sast.runner import MockAdapter, SastRunner
-from secure_code_rl_ictai.sast.severity import SeveritySource
+from cargo.sast.models import ToolName
+from cargo.sast.runner import MockAdapter, SastRunner
+from cargo.sast.severity import SeveritySource
 
 
 # Completions long enough to clear the pipeline's stub guard (< 20

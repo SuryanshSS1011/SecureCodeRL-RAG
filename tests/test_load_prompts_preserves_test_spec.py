@@ -63,7 +63,7 @@ def _write_fixture(tmp_path: Path) -> Path:
 def _import_script_module(name: str):
     """Import a scripts/<name>.py module via spec_from_file_location.
 
-    Adds src to sys.path so the script's `from secure_code_rl_ictai...`
+    Adds src to sys.path so the script's `from cargo...`
     imports resolve.
     """
     import importlib.util
