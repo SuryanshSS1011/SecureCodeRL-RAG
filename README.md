@@ -1,5 +1,7 @@
 # CARGO: Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23008092.svg)](https://doi.org/10.5281/zenodo.23008092)
+
 Code for the ICTAI 2026 paper *Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models (CARGO)* by Suryansh Singh Sijwali, Medhansh Kumar Singla, and Suman Saha (Pennsylvania State University).
 
 ## Summary
@@ -63,7 +65,7 @@ This work builds on *Scheduled Partial-Credit RL for Reliable Code Generation wi
 
 ## Citation
 
-See [CITATION.cff](CITATION.cff).
+See [CITATION.cff](CITATION.cff). The code is archived on Zenodo: [10.5281/zenodo.23008092](https://doi.org/10.5281/zenodo.23008092) for all versions, [10.5281/zenodo.23008093](https://doi.org/10.5281/zenodo.23008093) for v1.0.0.
 
 ## License
 

@@ -3,6 +3,15 @@ message: "If you use this software, please cite the ICTAI 2026 paper below."
 title: "CARGO: Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models"
 type: software
 version: "1.0.0"
+doi: "10.5281/zenodo.23008092"
+date-released: "2026-09-28"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23008092"
+    description: "Concept DOI for all versions"
+  - type: doi
+    value: "10.5281/zenodo.23008093"
+    description: "DOI for version 1.0.0"
 authors:
   - family-names: Sijwali
     given-names: Suryansh Singh
