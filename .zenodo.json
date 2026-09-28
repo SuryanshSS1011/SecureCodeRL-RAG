@@ -1,0 +1,36 @@
+{
+  "title": "CARGO: Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models",
+  "upload_type": "software",
+  "description": "Code for the ICTAI 2026 paper \"Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models (CARGO)\" by Suryansh Singh Sijwali, Medhansh Kumar Singla, and Suman Saha.",
+  "creators": [
+    {
+      "name": "Sijwali, Suryansh Singh",
+      "affiliation": "Pennsylvania State University",
+      "orcid": "0009-0005-7739-1657"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Singla, Medhansh Kumar",
+      "affiliation": "Pennsylvania State University",
+      "type": "Researcher"
+    },
+    {
+      "name": "Saha, Suman",
+      "affiliation": "Pennsylvania State University",
+      "orcid": "0009-0005-9440-6785",
+      "type": "Supervisor"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "secure code generation",
+    "reinforcement learning",
+    "GRPO",
+    "reward shaping",
+    "retrieval-augmented reward",
+    "static analysis",
+    "small language models",
+    "CWE"
+  ]
+}

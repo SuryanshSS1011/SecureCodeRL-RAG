@@ -12,17 +12,13 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.23008093"
     description: "DOI for version 1.0.0"
+  - type: doi
+    value: "10.5281/zenodo.23008384"
+    description: "DOI for version 1.0.1"
 authors:
   - family-names: Sijwali
     given-names: Suryansh Singh
     orcid: "https://orcid.org/0009-0005-7739-1657"
-    affiliation: "Pennsylvania State University"
-  - family-names: Singla
-    given-names: Medhansh Kumar
-    affiliation: "Pennsylvania State University"
-  - family-names: Saha
-    given-names: Suman
-    orcid: "https://orcid.org/0009-0005-9440-6785"
     affiliation: "Pennsylvania State University"
 preferred-citation:
   type: conference-paper

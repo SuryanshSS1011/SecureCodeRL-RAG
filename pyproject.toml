@@ -11,8 +11,6 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [
     { name = "Suryansh Singh Sijwali", email = "sss6371@psu.edu" },
-    { name = "Medhansh Kumar Singla", email = "mks6942@psu.edu" },
-    { name = "Suman Saha", email = "sumsaha@psu.edu" },
 ]
 keywords = [
     "secure-code-generation",
