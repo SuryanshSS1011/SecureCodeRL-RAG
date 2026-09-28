@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "secure-code-rl-ictai"
-version = "1.0.0"
+version = "1.0.1"
 description = "CARGO: continuous retrieval-grounded reward design for secure code generation on small language models (ICTAI 2026)"
 readme = "README.md"
 license = { file = "LICENSE" }
