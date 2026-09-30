@@ -4,6 +4,8 @@
 
 Code for the ICTAI 2026 paper *Continuous Retrieval-Grounded Reward Design for Secure Code Generation on Small Language Models (CARGO)* by Suryansh Singh Sijwali, Medhansh Kumar Singla, and Suman Saha (Pennsylvania State University).
 
+The submitted version of the paper is in [ICTAI_CARGO.pdf](ICTAI_CARGO.pdf).
+
 ## Summary
 
 Reinforcement learning with static application security testing (SAST) feedback stalls on small language models: most early rollouts fail to parse, every rollout in a group scores the same near-zero reward, and group-relative or ranking-based optimizers (GRPO, RLOO, RAFT) receive almost no gradient. On Qwen2.5-Coder-1.5B, SAST-only GRPO has a nonzero policy loss on fewer than 9% of training steps.
